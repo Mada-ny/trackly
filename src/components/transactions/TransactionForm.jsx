@@ -31,14 +31,8 @@ const formSchema = z.object({
     if (isFuture(dateTime)) {
         ctx.addIssue({ 
             code: "custom", 
-            path: ["date"],
-            message: "La date choisie n'est pas encore passée" 
-        });
-
-        ctx.addIssue({ 
-            code: "custom", 
             path: ["time"],
-            message: "L'heure choisie n'est pas encore passée" 
+            message: "La date et l'heure ne peuvent pas être dans le futur.", 
         });
     }
 });
@@ -46,18 +40,23 @@ const formSchema = z.object({
 export default function TransactionForm() {
     const accounts = useAccounts();
     const categories = useCategories();
+
+    const getDefaultValues = () => ({
+        amount: undefined,
+        description: "",
+        date: new Date(),
+        time: new Date().toLocaleTimeString("fr-FR", {
+          hour: "2-digit",
+          minute: "2-digit"
+        }).slice(0, 5),
+        accountId: "",
+        categoryId: "",
+      });
     
     const form = useForm({
         resolver: zodResolver(formSchema),
         mode: "onChange",
-        defaultValues: {
-            amount: undefined,
-            description: "",
-            date: new Date(),
-            time: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }).slice(0, 5),
-            accountId: "",
-            categoryId: "",
-        }
+        defaultValues: getDefaultValues(),
     })
 
     function onSubmit(data) {
@@ -262,7 +261,7 @@ export default function TransactionForm() {
             </CardContent>
             <CardFooter>
                 <Field orientation="horizontal">
-                    <Button type="button" variant="outline" onClick={() => form.reset()}>
+                    <Button type="button" variant="outline" onClick={() => form.reset(getDefaultValues())}>
                         Réinitialiser
                     </Button>
                     <Button type="submit" className={"bg-norway-600"} form="transaction-form" disabled={!form.formState.isValid || form.formState.isSubmitting}>
