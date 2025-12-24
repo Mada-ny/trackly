@@ -37,12 +37,12 @@ const formSchema = z.object({
     }
 });
 
-export default function TransactionForm() {
+export default function TransactionForm({ onSuccess }) {
     const accounts = useAccounts();
     const categories = useCategories();
 
     const getDefaultValues = () => ({
-        amount: undefined,
+        amount: '',
         description: "",
         date: new Date(),
         time: new Date().toLocaleTimeString("fr-FR", {
@@ -66,7 +66,12 @@ export default function TransactionForm() {
             (c) => c.id === data.categoryId
         );
 
-        const signedAmount = category && category?.type === 'income' 
+        if (!category) {
+            toast.error("Catégorie invalide");
+            return;
+        }
+
+        const signedAmount = category.type === 'income' 
             ? data.amount 
             : -data.amount;
 
@@ -83,200 +88,251 @@ export default function TransactionForm() {
         toast.success("Transaction ajoutée avec succès.", {
             position: "bottom-right"
         })
+
+        onSuccess?.();
     }
 
     return (
-        <Card className="w-full sm:max-w-md">
-            <CardHeader>
-                <CardTitle>Nouvelle transaction</CardTitle>
-                    <CardDescription>
-                        Ajoutez une nouvelle transaction (dépense ou revenu) à votre compte.
-                    </CardDescription>
-            </CardHeader>
-            <CardContent>
-                <form id="transaction-form" onSubmit={form.handleSubmit(onSubmit)}>
-                    <FieldGroup>
-                        {/* Montant */}
+        <div className="w-full p-4 bg-white">
+            {/* Header */}
+            <div className="mb-6">
+                <h2 className="text-lg font-semibold">
+                    Nouvelle transaction
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                    Ajoutez une nouvelle transaction (dépense ou revenu) à votre compte.
+                </p>
+            </div>
+
+            {/* Form */}
+            <form
+                id="transaction-form"
+                onSubmit={form.handleSubmit(onSubmit)}
+                className="space-y-6"
+            >
+                <FieldGroup>
+                    {/* Montant */}
+                    <Controller
+                        name="amount"
+                        control={form.control}
+                        render={({ field, fieldState }) => (
+                            <Field data-invalid={fieldState.invalid}>
+                                <FieldLabel htmlFor="transaction-form-title">
+                                    Montant
+                                </FieldLabel>
+                                <Input
+                                    {...field}
+                                    id="transaction-form-title"
+                                    aria-invalid={fieldState.invalid}
+                                    className="placeholder:text-sm"
+                                    placeholder="Entrez la somme de la transaction"
+                                    autoComplete="off"
+                                    type="number"
+                                    inputMode="decimal"
+                                />
+                                {fieldState.invalid && (
+                                    <FieldError errors={[fieldState.error]} />
+                                )}
+                            </Field>
+                        )}
+                    />
+
+                    {/* Catégorie */}
+                    <Controller
+                        name="categoryId"
+                        control={form.control}
+                        render={({ field, fieldState }) => (
+                            <Field data-invalid={fieldState.invalid}>
+                                <FieldLabel htmlFor="transaction-form-category">
+                                    Catégorie
+                                </FieldLabel>
+                                <Select
+                                    value={field.value ? field.value.toString() : ""}
+                                    onValueChange={(value) =>
+                                        field.onChange(Number(value))
+                                    }
+                                >
+                                    <SelectTrigger id="transaction-form-category">
+                                        <SelectValue placeholder="Choisissez une catégorie" />
+                                    </SelectTrigger>
+
+                                    <SelectContent>
+                                        {categories.map((category) => (
+                                            <SelectItem
+                                                key={category.id}
+                                                value={category.id.toString()}
+                                            >
+                                                {category.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+
+                                {fieldState.invalid && (
+                                    <FieldError errors={[fieldState.error]} />
+                                )}
+                            </Field>
+                        )}
+                    />
+
+                    {/* Compte */}
+                    <Controller
+                        name="accountId"
+                        control={form.control}
+                        render={({ field, fieldState }) => (
+                            <Field data-invalid={fieldState.invalid}>
+                                <FieldLabel htmlFor="transaction-form-account">
+                                    Compte
+                                </FieldLabel>
+                                <Select
+                                    value={field.value ? field.value.toString() : ""}
+                                    onValueChange={(value) =>
+                                        field.onChange(Number(value))
+                                    }
+                                >
+                                    <SelectTrigger id="transaction-form-account">
+                                        <SelectValue placeholder="Choisissez un compte" />
+                                    </SelectTrigger>
+
+                                    <SelectContent>
+                                        {accounts.map((account) => (
+                                            <SelectItem
+                                                key={account.id}
+                                                value={account.id.toString()}
+                                            >
+                                                {account.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+
+                                {fieldState.invalid && (
+                                    <FieldError errors={[fieldState.error]} />
+                                )}
+                            </Field>
+                        )}
+                    />
+
+                    {/* Date & Time */}
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-2">
                         <Controller
-                            name="amount"
+                            name="date"
                             control={form.control}
                             render={({ field, fieldState }) => (
                                 <Field data-invalid={fieldState.invalid}>
-                                    <FieldLabel htmlFor="transaction-form-title">
-                                        Montant
+                                    <FieldLabel htmlFor="transaction-form-date">
+                                        Date
+                                    </FieldLabel>
+                                    <DatePicker
+                                        id="transaction-form-date"
+                                        value={field.value}
+                                        onChange={field.onChange}
+                                    />
+                                </Field>
+                            )}
+                        />
+
+                        <Controller
+                            name="time"
+                            control={form.control}
+                            render={({ field, fieldState }) => (
+                                <Field data-invalid={fieldState.invalid}>
+                                    <FieldLabel htmlFor="transaction-form-time">
+                                        Heure
                                     </FieldLabel>
                                     <Input
                                         {...field}
-                                        id="transaction-form-title"
-                                        aria-invalid={fieldState.invalid}
-                                        placeholder="Entrez la somme de la transaction"
-                                        autoComplete="off"
-                                        type="number"
+                                        id="transaction-form-time"
+                                        type="time"
+                                        step="60"
+                                        className="bg-background appearance-none
+                                            [&::-webkit-calendar-picker-indicator]:hidden
+                                            [&::-webkit-calendar-picker-indicator]:appearance-none
+                                            text-sm"
                                     />
-                                    {fieldState.invalid && (
-                                        <FieldError errors={[fieldState.error]} />
-                                    )}
                                 </Field>
                             )}
                         />
 
-                        {/* Catégorie */}
-                        <Controller
-                            name="categoryId"
-                            control={form.control}
-                            render={({ field, fieldState }) => (
-                                <Field data-invalid={fieldState.invalid}>
-                                    <FieldLabel htmlFor="transaction-form-category">
-                                        Catégorie
-                                    </FieldLabel>
-                                    <Select
-                                        value={field.value ? field.value.toString() : ""}
-                                        onValueChange={(value) => field.onChange(Number(value))}
-                                    >
-                                        <SelectTrigger id="transaction-form-category">
-                                            <SelectValue placeholder="Choisissez une catégorie" />
-                                        </SelectTrigger>
-
-                                        <SelectContent>
-                                            {categories.map((category) => (
-                                                <SelectItem 
-                                                    key={category.id} 
-                                                    value={category.id.toString()}
-                                                >
-                                                    {category.name}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                    {fieldState.invalid && (
-                                        <FieldError errors={[fieldState.error]} />
-                                    )}
-                                </Field>
-                            )}
-                        />
-
-                        {/* Compte */}
-                        <Controller
-                            name="accountId"
-                            control={form.control}
-                            render={({ field, fieldState }) => (
-                                <Field data-invalid={fieldState.invalid}>
-                                    <FieldLabel htmlFor="transaction-form-account">
-                                        Compte
-                                    </FieldLabel>
-                                    <Select
-                                        value={field.value ? field.value.toString() : ""}
-                                        onValueChange={(value) => field.onChange(Number(value))}
-                                    >
-                                        <SelectTrigger id="transaction-form-account">
-                                            <SelectValue placeholder="Choisissez un compte" />
-                                        </SelectTrigger>
-
-                                        <SelectContent>
-                                            {accounts.map((account) => (
-                                                <SelectItem 
-                                                    key={account.id} 
-                                                    value={account.id.toString()}
-                                                >
-                                                    {account.name}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                    {fieldState.invalid && (
-                                        <FieldError errors={[fieldState.error]} />
-                                    )}
-                                </Field>
-                            )}
-                        />
-
-                        <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-                            {/* Date */}
-                            <Controller
-                                name="date"
-                                control={form.control}
-                                render={({ field, fieldState }) => (
-                                    <Field data-invalid={fieldState.invalid}>
-                                        <FieldLabel htmlFor="transaction-form-date">Date</FieldLabel>
-                                        <DatePicker 
-                                            id="transaction-form-date" 
-                                            value={field.value} 
-                                            onChange={field.onChange} 
-                                        />
-                                    </Field>
-                                )}
-                            />
-
-                            {/* Heure */}
-                            <Controller
-                                name="time"
-                                control={form.control}
-                                render={({ field, fieldState }) => (
-                                    <Field data-invalid={fieldState.invalid}>
-                                        <FieldLabel htmlFor="transaction-form-time">Heure</FieldLabel>
-                                        <Input 
-                                            {...field}
-                                            id="transaction-form-time" 
-                                            type="time"
-                                            step="60"
-                                            className="bg-background appearance-none 
-                                                [&::-webkit-calendar-picker-indicator]:hidden 
-                                                [&::-webkit-calendar-picker-indicator]:appearance-none"
-                                        />
-                                    </Field>
-                                )}
-                            />
-
-                            {(form.formState.errors.date || form.formState.errors.time) && (
-                                <FieldError className="col-span-2" errors={[
+                        {(form.formState.errors.date ||
+                            form.formState.errors.time) && (
+                            <FieldError
+                                className="col-span-2"
+                                errors={[
                                     form.formState.errors.date,
-                                    form.formState.errors.time
-                                ].filter(Boolean)} />
-                            )}
+                                    form.formState.errors.time,
+                                ].filter(Boolean)}
+                            />
+                        )}
 
-                            <p className="text-xs text-muted-foreground col-span-2">
-                                Si l'heure n'est pas connue, entrez <strong>00:00</strong>.
-                            </p>
-                        </div>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="w-full col-span-2 text-muted-foreground"
+                            onClick={() =>
+                                form.setValue("time", "00:00", {
+                                    shouldValidate: true,
+                                })
+                            }
+                        >
+                            Heure inconnue
+                        </Button>
+                    </div>
 
-                        {/* Montant */}
-                        <Controller
-                            name="description"
-                            control={form.control}
-                            render={({ field, fieldState }) => (
-                                <Field data-invalid={fieldState.invalid}>
-                                    <FieldLabel htmlFor="transaction-form-description">
-                                        Description
-                                    </FieldLabel>
-                                    <Input
-                                        {...field}
-                                        id="transaction-form-description"
-                                        aria-invalid={fieldState.invalid}
-                                        placeholder="Burger chez Paul..."
-                                        autoComplete="off"
-                                    />
-                                    {fieldState.invalid && (
-                                        <FieldError errors={[fieldState.error]} />
-                                    )}
-                                    <FieldDescription>
-                                        Une courte description aide à mieux suivre vos dépenses.
-                                    </FieldDescription>
-                                </Field>
-                            )}
-                        />
-                    </FieldGroup>
-                </form>
-            </CardContent>
-            <CardFooter>
-                <Field orientation="horizontal">
-                    <Button type="button" variant="outline" onClick={() => form.reset(getDefaultValues())}>
-                        Réinitialiser
-                    </Button>
-                    <Button type="submit" className={"bg-norway-600"} form="transaction-form" disabled={!form.formState.isValid || form.formState.isSubmitting}>
-                        {form.formState.isSubmitting ? "Enregistrement..." : "Enregistrer"}
-                    </Button>
-                </Field>
-            </CardFooter>
-        </Card>
+                    {/* Description */}
+                    <Controller
+                        name="description"
+                        control={form.control}
+                        render={({ field, fieldState }) => (
+                            <Field data-invalid={fieldState.invalid}>
+                                <FieldLabel htmlFor="transaction-form-description">
+                                    Description
+                                </FieldLabel>
+                                <Input
+                                    {...field}
+                                    id="transaction-form-description"
+                                    aria-invalid={fieldState.invalid}
+                                    placeholder="Burger chez Paul..."
+                                    autoComplete="off"
+                                />
+                                {fieldState.invalid && (
+                                    <FieldError errors={[fieldState.error]} />
+                                )}
+                                <FieldDescription>
+                                    Une courte description aide à mieux suivre vos
+                                    dépenses.
+                                </FieldDescription>
+                            </Field>
+                        )}
+                    />
+                </FieldGroup>
+            </form>
+
+            {/* Actions */}
+            <div className="mt-6 flex items-center justify-end gap-3">
+                <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => form.reset(getDefaultValues())}
+                >
+                    Réinitialiser
+                </Button>
+
+                <Button
+                    type="submit"
+                    form="transaction-form"
+                    className="bg-norway-600"
+                    disabled={
+                        !form.formState.isValid ||
+                        form.formState.isSubmitting
+                    }
+                >
+                    {form.formState.isSubmitting
+                        ? "Enregistrement..."
+                        : "Enregistrer"}
+                </Button>
+            </div>
+        </div>
     )
 }

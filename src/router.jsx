@@ -1,19 +1,21 @@
 import { createBrowserRouter } from "react-router";
 import MainLayout from "./layouts/MainLayout";
-import Dashboard from "./pages/Dashboard";
-import Transactions from "./pages/Transactions";
-import Settings from "./pages/Settings";
-import DataManagement from "./pages/DataManagement";
+import DashboardPage from "./pages/DashboardPage";
+import TransactionsPage from "./pages/TransactionsPage";
+import NewTransactionPage from "./pages/NewTransactionPage";
+import SettingsPage from "./pages/SettingsPage";
+import DataManagementPage from "./pages/DataManagementPage";
 
 export const router = createBrowserRouter([
     {
         path: "/",
         element: <MainLayout />,
         children: [
-            { index: true, element: <Dashboard /> },
-            { path: "transactions", element: <Transactions /> },
-            { path: "settings", element: <Settings /> },
-            { path: "settings/data", element: <DataManagement /> },
+            { index: true, element: <DashboardPage /> },
+            { path: "transactions", element: <TransactionsPage /> },
+            { path: "transactions/new", element: <NewTransactionPage /> },
+            { path: "settings", element: <SettingsPage /> },
+            { path: "settings/data", element: <DataManagementPage /> },
         ]
     }
 ])

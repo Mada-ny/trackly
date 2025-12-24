@@ -1,4 +1,4 @@
-export default function DataManagement() {
+export default function DataManagementPage() {
 
     return (
         <>

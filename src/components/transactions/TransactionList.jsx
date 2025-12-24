@@ -13,7 +13,7 @@ export default function TransactionList({
 
     if (variant === "mobile") {
         return (
-            <ul className="px-1 space-y-3">
+            <ul className="p-4 space-y-3">
                 {displayedTransactions.map((transaction) => (
                         <li key={transaction.id} className="flex justify-between items-center">
                             <div className="flex flex-col">
@@ -27,7 +27,7 @@ export default function TransactionList({
                             </div>
                             <div className="flex flex-col items-end">
                                 <span className={`font-semibold ${transaction.isIncome ? "text-green-400" : "text-red-400" } `}>
-                                    {transaction.isIncome ? '+' : '-'}{transaction.amount}
+                                    {transaction.isIncome ? '+' : ''}{transaction.amount}
                                 </span>
                                 <span className="text-sm font-medium text-gray-500">{transaction.category?.name}</span>
                             </div>
