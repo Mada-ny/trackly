@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "./button";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
 export function FAB({ to = "/transactions/new" }) {
     const navigate = useNavigate();
+    const location = useLocation();
+    
     const [show, setShow] = useState(true);
     const lastScrollY = useRef(0);
     const ticking = useRef(false);
@@ -44,7 +46,11 @@ export function FAB({ to = "/transactions/new" }) {
 
     return (
         <Button
-            onClick={() => navigate(to)}
+            onClick={() => 
+                navigate(to, { 
+                    state: { from: location.pathname + location.search } 
+                })
+            }
             variant="default"
             size="icon-lg"
             aria-label="Ajouter une transaction"

@@ -26,7 +26,7 @@ export default function MobileNav() {
                 }
             >
                 <LayoutDashboard className="w-6 h-6" />
-                <span className="text-sm font-semibold">`Dashboard</span>
+                <span className="text-sm font-semibold">Dashboard</span>
             </NavLink>
 
             <NavLink 
