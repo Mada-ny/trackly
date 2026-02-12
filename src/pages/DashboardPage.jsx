@@ -1,10 +1,15 @@
 import { Button } from "@/components/ui/button"
 import TransactionList from "@/components/transactions/TransactionList"
+import { useEnrichedTransactions } from "@/utils/db/hooks/transactions/useEnrichedTransactions"
 import { Link } from "react-router-dom"
 import { FAB } from "@/components/ui/FAB"
 import { ChevronRight } from "lucide-react"
+import { compareDesc } from "date-fns"
 
 export default function DashboardPage() {
+    const enriched = useEnrichedTransactions();
+    const recent = enriched.toSorted((a, b) => compareDesc(a.date, b.date))
+        .slice(0, 5);
 
     return (
         <>
@@ -18,7 +23,10 @@ export default function DashboardPage() {
                             </Link>
                         </Button>
                 </div>
-                <TransactionList variant={"mobile"} limit={5} />
+                <TransactionList 
+                    variant={"mobile"} 
+                    transactions={recent}
+                />
             </div>
             <FAB />
         </>

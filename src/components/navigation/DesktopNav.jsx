@@ -9,7 +9,7 @@ import { LayoutDashboard, WalletCards, Settings } from "lucide-react";
 export default function DesktopNav() {
 
     return (
-        <nav className="bg-transparent px-4 py-6 flex flex-col justify-between min-h-screen">
+        <nav className="bg-transparent px-4 py-6 flex flex-col justify-between">
 
             <div className="flex flex-col items-center gap-8 pt-10">
                 <Tooltip>
