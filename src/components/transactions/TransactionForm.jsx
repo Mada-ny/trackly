@@ -2,8 +2,7 @@ import { useAccounts, useCategories, useTransaction } from "@/utils/db/hooks";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
-import { useEffect, useState } from "react";
-import { z } from "zod";
+import { useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button"
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
@@ -11,9 +10,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import DatePicker from "../date/DatePicker";
 import { buildDateTime } from "@/utils/date/buildDateTime";
 import { db } from "@/utils/db/schema";
-import { isFuture, format } from "date-fns";
+import { format } from "date-fns";
+import { transactionFormSchema } from "@/utils/db/schemas/transactionFormSchema";
 
-const getCreateDefaultValues = () => ({
+// Valeurs par défaut pour une nouvelle transaction
+const getCreateDefaultValues = (overrides = {}) => ({
     amount: "",
     description: "",
     date: new Date(),
@@ -21,75 +22,57 @@ const getCreateDefaultValues = () => ({
         hour: "2-digit",
         minute: "2-digit",
     }).slice(0, 5),
-    accountId: "",
-    categoryId: "",
-});
-
-const formSchema = z.object({
-    amount: z.coerce.number().min(1, "Le montant doit être supérieur à 0."),
-    description: z.string().trim().min(5, "Veuillez préciser la dépense (ex: Burger, courses, taxi)."),
-    date: z.date(),
-    time: z.string().regex(/^\d{2}:\d{2}$/, "Heure non valide."),
-    accountId: z.string().min(1, "Vous devez sélectionner un compte."),
-    categoryId: z.string().min(1, "Vous devez sélectionner une catégorie."),
-}).superRefine((data, ctx) => {
-    const dateTime = buildDateTime(data.date, data.time);
-    if (isFuture(dateTime)) {
-        ctx.addIssue({ 
-            code: "custom", 
-            path: ["time"],
-            message: "La date et l'heure ne peuvent pas être dans le futur.", 
-        });
-    }
+    accountId: overrides.accountId ? String(overrides.accountId) : "",
+    categoryId: overrides.categoryId ? String(overrides.categoryId) : "",
 });
 
 export default function TransactionForm({ 
     mode = "create",
     transactionId = null,
-    onSuccess 
+    onSuccess,
+    defaultValues = {}
 }) {
-    const existingTransaction = useTransaction(
-        mode === "edit" ? Number(transactionId) : null
-    );
+    // Récupération de la transaction si on est en mode édition
+    const idToFetch = useMemo(() => mode === "edit" ? Number(transactionId) : null, [mode, transactionId]);
+    const existingTransaction = useTransaction(idToFetch);
     
+    // Chargement des listes pour les selects
     const accounts = useAccounts();
     const categories = useCategories();
 
     const isLoading =
-        (mode === "edit" && !transactionId) ||
+        (mode === "edit" && !existingTransaction) ||
         !accounts.length ||
         !categories.length;
     
     const form = useForm({
-        resolver: zodResolver(formSchema),
+        resolver: zodResolver(transactionFormSchema),
         mode: "onChange",
-        defaultValues: getCreateDefaultValues(),
+        defaultValues: getCreateDefaultValues(defaultValues),
     });
-
-    const [localCategory, setLocalCategory] = useState("");
-    const [localAccount, setLocalAccount] = useState("");
-
+    
+    // Synchronisation des valeurs par défaut (utile lors de la navigation depuis le dashboard)
+    const defaultValuesString = useMemo(() => JSON.stringify(defaultValues), [defaultValues]);
     
     useEffect(() => {
-        if (mode === "edit" && existingTransaction && accounts.length && categories.length) {
-            const cat = String(existingTransaction.categoryId);
-            const acc = String(existingTransaction.accountId);
-        
+        if (mode === "create") {
+            form.reset(getCreateDefaultValues(defaultValues));
+        }
+    }, [mode, defaultValuesString, defaultValues, form]);
+
+    // Remplissage du formulaire en mode édition une fois les données chargées
+    useEffect(() => {
+        if (mode === "edit" && existingTransaction && accounts.length > 0 && categories.length > 0) {
             form.reset({
                 amount: Math.abs(existingTransaction.amount),
                 description: existingTransaction.description,
-                categoryId: cat,
-                accountId: acc,
-                date: existingTransaction.date,
+                categoryId: String(existingTransaction.categoryId),
+                accountId: String(existingTransaction.accountId),
+                date: new Date(existingTransaction.date),
                 time: format(existingTransaction.date, "HH:mm"),
             });
-        
-            setTimeout(() => {
-                setLocalCategory(cat);
-                setLocalAccount(acc);
-            }, 0);
         }
-    }, [mode, existingTransaction, form, accounts, categories]);
+    }, [mode, existingTransaction, accounts, categories, form]);
 
     const onSubmit = async (data) => {
         const category = categories.find(
@@ -101,6 +84,7 @@ export default function TransactionForm({
             return;
         }
 
+        // On gère le signe du montant selon le type de catégorie
         const signedAmount = category.type === 'income' 
             ? data.amount 
             : -data.amount;
@@ -113,44 +97,43 @@ export default function TransactionForm({
             description: data.description,
         }
 
-        if (mode === "create") {
-            await db.transactions.add(transactionData);
-            toast.success("Transaction ajoutée avec succès.");
-        } else {
-            await db.transactions.update(Number(transactionId), transactionData);
-            toast.success("Transaction modifiée avec succès.");
-        }
+        try {
+            if (mode === "create") {
+                await db.transactions.add(transactionData);
+                toast.success("Transaction ajoutée avec succès.");
+            } else {
+                await db.transactions.update(Number(transactionId), transactionData);
+                toast.success("Transaction modifiée avec succès.");
+            }
 
-        if (mode === "create") {
-            form.reset(getCreateDefaultValues());
+            if (mode === "create") {
+                form.reset(getCreateDefaultValues());
+            }
+            onSuccess?.();
+        } catch (error) {
+            console.error(error);
+            toast.error("Erreur lors de l'enregistrement.");
         }
-        onSuccess?.();
     }
 
     if (isLoading) {
         return (
             <div className="flex h-screen items-center justify-center p-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-norway-600" />
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
             </div>
         );
     }
 
     return (
-        <div className="w-full h-screen p-4 bg-white">
-            {/* Header */}
-            <div className="mb-6">
-                <h2 className="text-lg font-semibold">
-                    {mode === "create" ? "Nouvelle transaction" : "Modifier la transaction"}
-                </h2>
-                <p className="text-sm text-muted-foreground">
+        <div className="w-full p-4 bg-background pb-24">
+            <p className="text-sm text-muted-foreground mb-6">
                 {mode === "create" 
                     ? "Ajoutez une nouvelle transaction (dépense ou revenu) à votre compte."
-                    : "Modifiez les détails de votre transaction."
+                    : "Modifiez les détails de votre transaction ci-dessous."
                 }
-                </p>
-            </div>
+            </p>
 
-            {/* Form */}
+            {/* Formulaire principal */}
             <form
                 id="transaction-form"
                 onSubmit={form.handleSubmit(onSubmit)}
@@ -193,11 +176,8 @@ export default function TransactionForm({
                                     Catégorie
                                 </FieldLabel>
                                 <Select
-                                    value={localCategory}
-                                    onValueChange={(value) => {
-                                        field.onChange(value);
-                                        setLocalCategory(value);
-                                    }}
+                                    value={field.value}
+                                    onValueChange={field.onChange}
                                     disabled={!categories.length}
                                 >
                                     <SelectTrigger id="transaction-form-category">
@@ -205,7 +185,9 @@ export default function TransactionForm({
                                     </SelectTrigger>
 
                                     <SelectContent>
-                                        {categories.map((category) => (
+                                        {categories
+                                            .filter(category => category.name !== "Transfert")
+                                            .map((category) => (
                                             <SelectItem
                                                 key={category.id}
                                                 value={category.id.toString()}
@@ -223,7 +205,7 @@ export default function TransactionForm({
                         )}
                     />
 
-                    {/* Compte */}
+                    {/* Compte Source/Destination */}
                     <Controller
                         name="accountId"
                         control={form.control}
@@ -233,11 +215,8 @@ export default function TransactionForm({
                                     Compte
                                 </FieldLabel>
                                 <Select
-                                    value={localAccount}
-                                    onValueChange={(value) => {
-                                        field.onChange(value);
-                                        setLocalAccount(value);
-                                    }}
+                                    value={field.value}
+                                    onValueChange={field.onChange}
                                     disabled={!accounts.length}
                                 >
                                     <SelectTrigger id="transaction-form-account">
@@ -263,7 +242,7 @@ export default function TransactionForm({
                         )}
                     />
 
-                    {/* Date & Time */}
+                    {/* Date & Heure */}
                     <div className="grid grid-cols-2 gap-x-4 gap-y-2">
                         <Controller
                             name="date"
@@ -330,7 +309,7 @@ export default function TransactionForm({
                         </Button>
                     </div>
 
-                    {/* Description */}
+                    {/* Description textuelle */}
                     <Controller
                         name="description"
                         control={form.control}
@@ -359,7 +338,7 @@ export default function TransactionForm({
                 </FieldGroup>
             </form>
 
-            {/* Actions */}
+            {/* Actions du formulaire */}
             <div className="mt-6 flex items-center justify-end gap-3">
                 <Button
                     type="button"
@@ -367,8 +346,6 @@ export default function TransactionForm({
                     onClick={
                         () => {
                             form.reset(getCreateDefaultValues());
-                            setLocalAccount("");
-                            setLocalCategory("");
                         }
                     }
                 >
@@ -378,7 +355,6 @@ export default function TransactionForm({
                 <Button
                     type="submit"
                     form="transaction-form"
-                    className="bg-norway-600"
                     disabled={
                         !form.formState.isValid ||
                         form.formState.isSubmitting

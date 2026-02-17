@@ -44,8 +44,8 @@ export default function TransactionDetailDrawer({
                     <DrawerDescription
                         className={`text-3xl font-bold flex items-center justify-center ${
                         transaction.isIncome
-                            ? "text-emerald-600 dark:text-emerald-400"
-                            : "text-red-600 dark:text-red-400"
+                            ? "text-teal-600 dark:text-teal-400"
+                            : "text-orange-600 dark:text-orange-400"
                         }`}
                     >
                         {transaction.isIncome ? '+' : '-'}
@@ -93,8 +93,8 @@ export default function TransactionDetailDrawer({
                                     variant="secondary" 
                                     className={
                                         transaction.isIncome
-                                        ? 'bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300'
-                                        : 'bg-rose-100 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300'
+                                        ? 'bg-teal-100 dark:bg-teal-950/50 text-teal-700 dark:text-teal-300'
+                                        : 'bg-orange-100 dark:bg-orange-950/50 text-orange-700 dark:text-orange-300'
                                     }
                                 >
                                     {transaction.isIncome ? "Revenu" : "Dépense"}
@@ -142,7 +142,7 @@ export default function TransactionDetailDrawer({
                                         onDelete(transaction.id);
                                         onOpenChange(false);
                                     }}
-                                    className="bg-red-600 hover:bg-red-700"
+                                    variant="destructive"
                                 >
                                     Supprimer
                                 </AlertDialogAction>

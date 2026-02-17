@@ -55,8 +55,8 @@ export function FAB({ to = "/transactions/new" }) {
             size="icon-lg"
             aria-label="Ajouter une transaction"
             className={cn(
-                "fixed bg-norway-500 rounded-full bottom-24 right-6 z-50 md:bottom-8",
-                "transition-all duration-300 ease-out will-change-transform",
+                "fixed bg-linear-to-br from-deep-emerald-500 to-deep-emerald-700 text-white shadow-soft-xl rounded-full bottom-24 right-6 z-50 md:bottom-8",
+                "transition-all duration-300 ease-out will-change-transform hover:scale-105 active:scale-95",
                 show ? "opacity-100 translate-y-0" : "opacity-0 translate-y-12"
             )}
         >

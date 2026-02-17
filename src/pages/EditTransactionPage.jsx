@@ -10,6 +10,7 @@ export default function EditTransactionPage() {
 
     return (
         <TransactionForm 
+            key={id}
             mode="edit"
             transactionId={id}
             onSuccess={() => navigate(from)}

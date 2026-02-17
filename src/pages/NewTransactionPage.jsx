@@ -6,11 +6,13 @@ export default function NewTransactionPage() {
     const location = useLocation();
 
     const from = location.state?.from || "/transactions";
+    const defaultValues = location.state?.defaultValues || {};
 
     return (
         <TransactionForm
             mode="create"
             onSuccess={() => navigate(from)}
+            defaultValues={defaultValues}
         />
     )
 }
