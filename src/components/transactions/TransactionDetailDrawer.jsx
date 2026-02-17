@@ -114,7 +114,7 @@ export default function TransactionDetailDrawer({
                         }}
                     >
                         <Edit3 className="w-4 h-4 mr-2" />
-                        Modifier la transaction
+                        Modifier l'opération
                     </Button>
 
                     <AlertDialog>
@@ -132,7 +132,7 @@ export default function TransactionDetailDrawer({
                             <AlertDialogHeader>
                                 <AlertDialogTitle>Confirmer la suppression</AlertDialogTitle>
                                 <AlertDialogDescription>
-                                    Cette action est irréversible et supprimera définitivement la transaction "{transaction.description}".
+                                    Cette action est irréversible et supprimera définitivement l'opération "{transaction.description}".
                                 </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>

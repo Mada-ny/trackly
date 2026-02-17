@@ -14,11 +14,17 @@ import { z } from "zod";
 import { format } from "date-fns";
 
 const transferFormSchema = z.object({
-    amount: z.coerce.number().positive("Le montant doit être supérieur à 0"),
-    fromAccountId: z.string().min(1, "Compte source requis"),
-    toAccountId: z.string().min(1, "Compte destination requis"),
-    date: z.instanceof(Date),
-    time: z.string().regex(/^\d{2}:\d{2}$/, "Heure invalide"),
+    amount: z.coerce.number({
+        required_error: "Le montant est requis",
+        invalid_type_error: "Le montant doit être un nombre",
+    }).positive("Le montant doit être supérieur à 0"),
+    fromAccountId: z.string().min(1, "Veuillez sélectionner le compte source"),
+    toAccountId: z.string().min(1, "Veuillez sélectionner le compte destination"),
+    date: z.date({
+        required_error: "La date est requise",
+        invalid_type_error: "Format de date invalide",
+    }),
+    time: z.string().regex(/^\d{2}:\d{2}$/, "Format d'heure invalide (HH:mm)"),
 }).refine(data => data.fromAccountId !== data.toAccountId, {
     message: "Les comptes source et destination doivent être différents",
     path: ["toAccountId"],
