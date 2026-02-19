@@ -10,8 +10,10 @@ import {
 import { Link } from "react-router-dom";
 import { useCategories } from "@/utils/db/hooks";
 import { Button } from "@/components/ui/button";
-import { Plus, Edit2, Trash2, Tag, TrendingDown, TrendingUp } from "lucide-react";
+import { Plus, Edit2, Trash2, Tag, TrendingDown, TrendingUp, Search, X } from "lucide-react";
 import { useState } from "react";
+import { useDebounce } from "use-debounce";
+import { Input } from "@/components/ui/input";
 import { 
     Drawer, 
     DrawerContent, 
@@ -39,6 +41,10 @@ export default function CategoriesManagementPage() {
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
     const [selectedCategory, setSelectedCategory] = useState(null);
     const [categoryToDelete, setCategoryToDelete] = useState(null);
+
+    // État de recherche local
+    const [searchQuery, setSearchQuery] = useState("");
+    const [debouncedSearchQuery] = useDebounce(searchQuery, 300);
 
     const handleAdd = () => {
         setSelectedCategory(null);
@@ -76,8 +82,16 @@ export default function CategoriesManagementPage() {
         }
     };
 
-    const expenseCategories = categories.filter(c => c.type === "expense" && c.name !== "Transfert");
-    const incomeCategories = categories.filter(c => c.type === "income" && c.name !== "Transfert");
+    // Filtrage des catégories
+    const query = debouncedSearchQuery.toLowerCase();
+    const filteredCategories = categories.filter(c => 
+        c.name.toLowerCase().includes(query) && c.name !== "Transfert"
+    );
+
+    const expenseCategories = filteredCategories.filter(c => c.type === "expense");
+    const incomeCategories = filteredCategories.filter(c => c.type === "income");
+
+    const hasResults = expenseCategories.length > 0 || incomeCategories.length > 0;
 
     return (
         <div className="flex flex-col h-screen bg-background">
@@ -85,14 +99,18 @@ export default function CategoriesManagementPage() {
                 title="Mes catégories" 
                 fallback="/settings" 
                 action={
-                    <Button onClick={handleAdd} size="sm" className="rounded-full gap-1.5 h-9 px-4">
-                        <Plus className="w-4 h-4" />
-                        <span className="hidden sm:inline">Nouvelle</span>
+                    <Button 
+                        onClick={handleAdd} 
+                        variant="ghost" 
+                        size="icon" 
+                        className="rounded-full h-9 w-9"
+                    >
+                        <Plus className="w-6 h-6 text-foreground" />
                     </Button>
                 }
             />
             
-            <div className="px-4 py-3 shrink-0">
+            <div className="px-4 py-3 shrink-0 space-y-4">
                 <Breadcrumb>
                     <BreadcrumbList>
                         <BreadcrumbItem>
@@ -106,50 +124,82 @@ export default function CategoriesManagementPage() {
                         </BreadcrumbItem>
                     </BreadcrumbList>
                 </Breadcrumb>
+
+                {/* Barre de recherche */}
+                <div className="relative group">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                    <Input
+                        type="text"
+                        placeholder="Rechercher une catégorie..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full pl-10 pr-10 h-11 rounded-2xl border-none bg-muted/50 focus-visible:ring-2 focus-visible:ring-primary/20 transition-all text-base"
+                    />
+                    {searchQuery && (
+                        <button
+                            onClick={() => setSearchQuery('')}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-muted rounded-full transition-colors"
+                        >
+                            <X className="h-4 w-4 text-muted-foreground" />
+                        </button>
+                    )}
+                </div>
             </div>
 
             <div className="grow overflow-y-auto no-scrollbar p-4 pb-24">
                 <div className="space-y-8 max-w-2xl mx-auto">
                     
+                    {!hasResults && (
+                        <div className="text-center py-12">
+                            <p className="text-muted-foreground italic">
+                                {searchQuery ? "Aucune catégorie ne correspond à votre recherche." : "Aucune catégorie configurée."}
+                            </p>
+                        </div>
+                    )}
+
                     {/* Dépenses */}
-                    <div className="space-y-3">
-                        <div className="flex items-center gap-2 px-1">
-                            <TrendingDown className="w-4 h-4 text-red-500" />
-                            <h2 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                                Dépenses
-                            </h2>
+                    {expenseCategories.length > 0 && (
+                        <div className="space-y-3">
+                            <div className="flex items-center gap-2 px-1">
+                                <TrendingDown className="w-4 h-4 text-red-500" />
+                                <h2 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                                    Dépenses
+                                </h2>
+                            </div>
+                            <div className="grid gap-2">
+                                {expenseCategories.map(category => (
+                                    <CategoryItem 
+                                        key={category.id} 
+                                        category={category} 
+                                        onEdit={handleEdit} 
+                                        onDelete={handleDeleteClick} 
+                                    />
+                                ))}
+                            </div>
                         </div>
-                        <div className="grid gap-2">
-                            {expenseCategories.map(category => (
-                                <CategoryItem 
-                                    key={category.id} 
-                                    category={category} 
-                                    onEdit={handleEdit} 
-                                    onDelete={handleDeleteClick} 
-                                />
-                            ))}
-                        </div>
-                    </div>
+                    )}
 
                     {/* Revenus */}
-                    <div className="space-y-3">
-                        <div className="flex items-center gap-2 px-1">
-                            <TrendingUp className="w-4 h-4 text-emerald-500" />
-                            <h2 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                                Revenus
-                            </h2>
+                    {incomeCategories.length > 0 && (
+                        <div className="space-y-3">
+                            <div className="flex items-center gap-2 px-1">
+                                <TrendingUp className="w-4 h-4 text-emerald-500" />
+                                <h2 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                                    Revenus
+                                </h2>
+                            </div>
+                            <div className="grid gap-2">
+                                {incomeCategories.map(category => (
+                                    <CategoryItem 
+                                        key={category.id} 
+                                        category={category} 
+                                        onEdit={handleEdit} 
+                                        onDelete={handleDeleteClick} 
+                                    />
+                                ))}
+                            </div>
                         </div>
-                        <div className="grid gap-2">
-                            {incomeCategories.map(category => (
-                                <CategoryItem 
-                                    key={category.id} 
-                                    category={category} 
-                                    onEdit={handleEdit} 
-                                    onDelete={handleDeleteClick} 
-                                />
-                            ))}
-                        </div>
-                    </div>
+                    )}
 
                 </div>
             </div>

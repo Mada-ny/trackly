@@ -1,4 +1,4 @@
-import { LayoutDashboard, WalletCards, Settings } from "lucide-react";
+import { LayoutDashboard, WalletCards, Settings, BarChart3 } from "lucide-react";
 
 export const navLinks = [
   {
@@ -10,6 +10,11 @@ export const navLinks = [
     to: "/",
     icon: LayoutDashboard,
     text: "Tableau de bord",
+  },
+  {
+    to: "/reports",
+    icon: BarChart3,
+    text: "Rapports",
   },
   {
     to: "/settings",

@@ -39,6 +39,12 @@ export async function importDatabase(data, clearFirst = false) {
         throw new Error("Format de fichier invalide.");
     }
 
+    // Correction: Re-convertir les chaînes de date en objets Date
+    const transactionsWithDates = data.transactions.map(t => ({
+        ...t,
+        date: new Date(t.date)
+    }));
+
     await db.transaction("rw", [db.accounts, db.categories, db.transactions], async () => {
         if (clearFirst) {
             await db.transactions.clear();
@@ -46,10 +52,8 @@ export async function importDatabase(data, clearFirst = false) {
             await db.accounts.clear();
         }
 
-        // On utilise bulkPut pour écraser les IDs existants si nécessaire 
-        // ou bulkAdd si on veut de nouveaux IDs (mais Put est plus sûr pour la restauration)
         await db.accounts.bulkPut(data.accounts);
         await db.categories.bulkPut(data.categories);
-        await db.transactions.bulkPut(data.transactions);
+        await db.transactions.bulkPut(transactionsWithDates);
     });
 }

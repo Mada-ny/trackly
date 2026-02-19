@@ -24,12 +24,11 @@ export default function TransactionsPage() {
     const initialFilters = location.state?.initialFilters || {};
     const { filters, updateFilter, setAllFilters, resetFilters, activeFilterCount } = useTransactionFilters(initialFilters);
     
-    const initialFiltersString = JSON.stringify(location.state?.initialFilters);
     useEffect(() => {
         if (location.state?.initialFilters) {
             setAllFilters(location.state.initialFilters);
         }
-    }, [initialFiltersString, location.state?.initialFilters, setAllFilters]);
+    }, [location.state?.initialFilters, setAllFilters]);
 
     const [searchQuery, setSearchQuery] = useState("");
     const [debouncedSearchQuery] = useDebounce(searchQuery, 300);
@@ -90,7 +89,7 @@ export default function TransactionsPage() {
 
     return (
         <div className="flex flex-col h-screen bg-background">
-            <div className="shrink-0 bg-background/80 backdrop-blur-md border-b border-border/50 sticky top-0 z-30">
+            <div className="shrink-0 glass-header">
                 <div className="px-4 pt-6 pb-4 space-y-4">
                     <div className="flex items-center justify-between">
                         <div>
@@ -195,7 +194,11 @@ export default function TransactionsPage() {
 
             {/* Contenu de la liste */}
             <div className="grow min-h-0 bg-background">
-                <DetailedTransactionList transactions={filteredTransactions} onTransactionClick={handleTransactionClick} />
+                <DetailedTransactionList 
+                    transactions={filteredTransactions} 
+                    allTransactions={enrichedTransactions}
+                    onTransactionClick={handleTransactionClick} 
+                />
             </div>
 
             <FilterDrawer
@@ -225,7 +228,7 @@ function FilterBadge({ label, onRemove }) {
             variant="secondary"
             className="h-7 px-2.5 py-0 rounded-lg flex items-center gap-1.5 bg-muted/80 text-foreground border-none font-medium shrink-0 animate-in fade-in zoom-in duration-200"
         >
-            <span className="text-[11px]">{label}</span>
+            <span className="text-[11px] font-bold">{label}</span>
             <button 
                 onClick={(e) => {
                     e.stopPropagation();

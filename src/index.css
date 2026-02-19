@@ -77,80 +77,130 @@
 
 :root {
     --radius: 0.625rem;
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.145 0 0);
+    
+    /* Fond Mint léger mais affirmé */
+    --background: oklch(0.98 0.012 155);
+    --foreground: oklch(0.25 0.04 155);
+    
+    /* Cartes blanches avec une très légère ombre teintée */
     --card: oklch(1 0 0);
-    --card-foreground: oklch(0.145 0 0);
+    --card-foreground: oklch(0.25 0.04 155);
+    
     --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.145 0 0);
-    --primary: oklch(50% 0.15 150); /* Deep Emerald 500 as primary */
-    --primary-foreground: oklch(100% 0 0); /* White for primary-foreground */
-    --secondary: oklch(97% 0 0);
-    --secondary-foreground: oklch(0.145 0 0);
-    --muted: oklch(97% 0 0);
-    --muted-foreground: oklch(0.556 0 0);
-    --accent: oklch(97% 0 0);
-    --accent-foreground: oklch(0.145 0 0);
+    --popover-foreground: oklch(0.25 0.04 155);
+    
+    --primary: oklch(0.441 0.13 150);
+    --primary-foreground: oklch(100% 0 0);
+    
+    --secondary: oklch(0.92 0.03 155);
+    --secondary-foreground: oklch(0.25 0.04 155);
+    
+    /* Muted plus coloré (tirant sur le Slate/Émeraude) */
+    --muted: oklch(0.94 0.02 155);
+    --muted-foreground: oklch(0.45 0.04 155);
+    
+    --accent: oklch(0.92 0.03 155);
+    --accent-foreground: oklch(0.25 0.04 155);
+    
     --destructive: oklch(0.577 0.245 27.325);
-    --border: oklch(0.922 0 0);
-    --input: oklch(0.922 0 0);
-    --ring: oklch(0.708 0 0);
+    
+    /* Bordures plus visibles et teintées */
+    --border: oklch(0.88 0.03 155);
+    --input: oklch(0.88 0.03 155);
+    
+    --ring: oklch(0.441 0.13 150 / 0.4);
+    
     --chart-1: oklch(0.646 0.222 41.116);
     --chart-2: oklch(0.6 0.118 184.704);
     --chart-3: oklch(0.398 0.07 227.392);
     --chart-4: oklch(0.828 0.189 84.429);
     --chart-5: oklch(0.769 0.188 70.08);
-    --sidebar: oklch(0.985 0 0);
-    --sidebar-foreground: oklch(0.145 0 0);
+    
+    --sidebar: oklch(0.98 0.012 155);
+    --sidebar-foreground: oklch(0.25 0.04 155);
     --sidebar-primary: oklch(0.205 0 0);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.97 0 0);
+    --sidebar-primary-foreground: oklch(0.98 0.012 155);
+    --sidebar-accent: oklch(0.92 0.03 155);
     --sidebar-accent-foreground: oklch(0.205 0 0);
-    --sidebar-border: oklch(0.922 0 0);
+    --sidebar-border: oklch(0.88 0.03 155);
     --sidebar-ring: oklch(0.708 0 0);
-    --shadow-color-light: oklch(0 0 0 / 0.1);
+    
+    --shadow-color-light: oklch(0.25 0.04 155 / 0.06);
 }
 
 .dark {
-    --background: oklch(0.145 0 0);
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.205 0 0);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.205 0 0);
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(50% 0.15 150); /* Deep Emerald 500 as primary */
-    --primary-foreground: oklch(0.145 0 0); /* Dark for primary-foreground */
-    --secondary: oklch(0.269 0 0);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.269 0 0);
-    --muted-foreground: oklch(0.708 0 0);
-    --accent: oklch(0.269 0 0);
-    --accent-foreground: oklch(0.985 0 0);
-    --destructive: oklch(0.704 0.191 22.216);
-    --border: oklch(1 0 0 / 10%);
-    --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.556 0 0);
+    /* Fond Forêt Profonde (pas noir, un vert très sombre) */
+    --background: oklch(0.18 0.025 165);
+    --foreground: oklch(0.96 0.015 165);
+    
+    /* Cartes légèrement plus claires pour créer de la profondeur */
+    --card: oklch(0.22 0.025 165);
+    --card-foreground: oklch(0.96 0.015 165);
+    
+    --popover: oklch(0.22 0.025 165);
+    --popover-foreground: oklch(0.96 0.015 165);
+    
+    --primary: oklch(0.651 0.15 150);
+    --primary-foreground: oklch(0.15 0.025 165);
+    
+    --secondary: oklch(0.28 0.03 165);
+    --secondary-foreground: oklch(0.96 0.015 165);
+    
+    --muted: oklch(0.28 0.03 165);
+    --muted-foreground: oklch(0.65 0.03 165);
+    
+    --accent: oklch(0.28 0.03 165);
+    --accent-foreground: oklch(0.96 0.015 165);
+    
+    --destructive: oklch(0.6 0.2 25);
+    
+    /* Bordures sombres mais teintées */
+    --border: oklch(0.32 0.03 165);
+    --input: oklch(0.32 0.03 165);
+    
+    --ring: oklch(0.651 0.15 150 / 0.4);
+    
     --chart-1: oklch(0.488 0.243 264.376);
     --chart-2: oklch(0.696 0.17 162.48);
     --chart-3: oklch(0.769 0.188 70.08);
     --chart-4: oklch(0.627 0.265 303.9);
     --chart-5: oklch(0.645 0.246 16.439);
-    --sidebar: oklch(0.205 0 0);
-    --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: oklch(0.488 0.243 264.376);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.269 0 0);
-    --sidebar-accent-foreground: oklch(0.985 0 0);
-    --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.556 0 0);
-    --shadow-color-dark: oklch(0 0 0 / 0.3);
+    
+    --sidebar: oklch(0.22 0.025 165);
+    --sidebar-foreground: oklch(0.96 0.015 165);
+    --sidebar-primary: oklch(0.651 0.15 150);
+    --sidebar-primary-foreground: oklch(0.96 0.015 165);
+    --sidebar-accent: oklch(0.28 0.03 165);
+    --sidebar-accent-foreground: oklch(0.96 0.015 165);
+    --sidebar-border: oklch(0.32 0.03 165);
+    --sidebar-ring: oklch(0.651 0.15 150 / 0.4);
+    
+    --shadow-color-dark: oklch(0 0 0 / 0.4);
 }
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border outline-ring/50 transition-colors duration-300;
     }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased selection:bg-primary/20 selection:text-primary;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
     }
+  h1, h2, h3, h4, h5, h6 {
+    @apply tracking-tight;
+    }
+}
+
+/* Custom Scrollbar hide but keep functionality */
+.no-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+.no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+/* Glass effect for headers */
+.glass-header {
+    @apply bg-background/80 backdrop-blur-xl border-b border-border/50 sticky top-0 z-30;
 }

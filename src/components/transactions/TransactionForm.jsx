@@ -2,7 +2,7 @@ import { useAccounts, useCategories, useTransaction } from "@/utils/db/hooks";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import { Button } from "@/components/ui/button"
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
@@ -42,37 +42,35 @@ export default function TransactionForm({
 
     const isLoading =
         (mode === "edit" && !existingTransaction) ||
-        !accounts.length ||
-        !categories.length;
-    
-    const form = useForm({
-        resolver: zodResolver(transactionFormSchema),
-        mode: "onChange",
-        defaultValues: getCreateDefaultValues(defaultValues),
-    });
-    
-    // Synchronisation des valeurs par défaut (utile lors de la navigation depuis le dashboard)
-    const defaultValuesString = useMemo(() => JSON.stringify(defaultValues), [defaultValues]);
-    
-    useEffect(() => {
-        if (mode === "create") {
-            form.reset(getCreateDefaultValues(defaultValues));
-        }
-    }, [mode, defaultValuesString, defaultValues, form]);
+        accounts.length === 0 ||
+        categories.length === 0;
 
-    // Remplissage du formulaire en mode édition une fois les données chargées
-    useEffect(() => {
+    // Détermination des valeurs du formulaire (soit edition, soit création avec overrides)
+    // L'utilisation de useMemo ici combinée à la prop 'values' de useForm règle le bug des cascading renders.
+    const formValues = useMemo(() => {
         if (mode === "edit" && existingTransaction && accounts.length > 0 && categories.length > 0) {
-            form.reset({
+            return {
                 amount: Math.abs(existingTransaction.amount),
                 description: existingTransaction.description,
                 categoryId: String(existingTransaction.categoryId),
                 accountId: String(existingTransaction.accountId),
                 date: new Date(existingTransaction.date),
                 time: format(existingTransaction.date, "HH:mm"),
-            });
+            };
         }
-    }, [mode, existingTransaction, accounts, categories, form]);
+        // En mode création, on retourne les valeurs par défaut
+        if (mode === "create") {
+            return getCreateDefaultValues(defaultValues);
+        }
+        return undefined;
+    }, [mode, existingTransaction, accounts, categories, defaultValues]);
+    
+    const form = useForm({
+        resolver: zodResolver(transactionFormSchema),
+        mode: "onChange",
+        values: formValues, // Synchronisation automatique et sécurisée par RHF
+        defaultValues: getCreateDefaultValues(defaultValues),
+    });
 
     const onSubmit = async (data) => {
         const category = categories.find(
@@ -84,10 +82,7 @@ export default function TransactionForm({
             return;
         }
 
-        // On gère le signe du montant selon le type de catégorie
-        const signedAmount = category.type === 'income' 
-            ? data.amount 
-            : -data.amount;
+        const signedAmount = category.type === 'income' ? data.amount : -data.amount;
 
         const transactionData = {
             date: buildDateTime(data.date, data.time),
@@ -105,10 +100,6 @@ export default function TransactionForm({
                 await db.transactions.update(Number(transactionId), transactionData);
                 toast.success("Transaction modifiée avec succès.");
             }
-
-            if (mode === "create") {
-                form.reset(getCreateDefaultValues());
-            }
             onSuccess?.();
         } catch (error) {
             console.error(error);
@@ -118,7 +109,7 @@ export default function TransactionForm({
 
     if (isLoading) {
         return (
-            <div className="flex h-screen items-center justify-center p-8">
+            <div className="flex h-screen items-center justify-center p-8 bg-background">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
             </div>
         );
@@ -133,7 +124,6 @@ export default function TransactionForm({
                 }
             </p>
 
-            {/* Formulaire principal */}
             <form
                 id="transaction-form"
                 onSubmit={form.handleSubmit(onSubmit)}
@@ -152,16 +142,11 @@ export default function TransactionForm({
                                 <Input
                                     {...field}
                                     id="transaction-form-title"
-                                    aria-invalid={fieldState.invalid}
-                                    className="placeholder:text-sm"
-                                    placeholder="Entrez la somme de la transaction"
-                                    autoComplete="off"
                                     type="number"
                                     inputMode="decimal"
+                                    placeholder="0.00"
                                 />
-                                {fieldState.invalid && (
-                                    <FieldError errors={[fieldState.error]} />
-                                )}
+                                {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
                             </Field>
                         )}
                     />
@@ -176,36 +161,32 @@ export default function TransactionForm({
                                     Catégorie
                                 </FieldLabel>
                                 <Select
+                                    key={`cat-${field.value}`}
                                     value={field.value}
                                     onValueChange={field.onChange}
-                                    disabled={!categories.length}
                                 >
                                     <SelectTrigger id="transaction-form-category">
                                         <SelectValue placeholder="Choisissez une catégorie" />
                                     </SelectTrigger>
-
                                     <SelectContent>
                                         {categories
-                                            .filter(category => category.name !== "Transfert")
+                                            .filter(c => c.name !== "Transfert" || String(c.id) === field.value)
                                             .map((category) => (
                                             <SelectItem
                                                 key={category.id}
-                                                value={category.id.toString()}
+                                                value={String(category.id)}
                                             >
                                                 {category.name}
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
                                 </Select>
-
-                                {fieldState.invalid && (
-                                    <FieldError errors={[fieldState.error]} />
-                                )}
+                                {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
                             </Field>
                         )}
                     />
 
-                    {/* Compte Source/Destination */}
+                    {/* Compte */}
                     <Controller
                         name="accountId"
                         control={form.control}
@@ -215,29 +196,25 @@ export default function TransactionForm({
                                     Compte
                                 </FieldLabel>
                                 <Select
+                                    key={`acc-${field.value}`}
                                     value={field.value}
                                     onValueChange={field.onChange}
-                                    disabled={!accounts.length}
                                 >
                                     <SelectTrigger id="transaction-form-account">
                                         <SelectValue placeholder="Choisissez un compte" />
                                     </SelectTrigger>
-
                                     <SelectContent>
                                         {accounts.map((account) => (
                                             <SelectItem
                                                 key={account.id}
-                                                value={account.id.toString()}
+                                                value={String(account.id)}
                                             >
                                                 {account.name}
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
                                 </Select>
-
-                                {fieldState.invalid && (
-                                    <FieldError errors={[fieldState.error]} />
-                                )}
+                                {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
                             </Field>
                         )}
                     />
@@ -247,11 +224,9 @@ export default function TransactionForm({
                         <Controller
                             name="date"
                             control={form.control}
-                            render={({ field, fieldState }) => (
-                                <Field data-invalid={fieldState.invalid}>
-                                    <FieldLabel htmlFor="transaction-form-date">
-                                        Date
-                                    </FieldLabel>
+                            render={({ field }) => (
+                                <Field>
+                                    <FieldLabel htmlFor="transaction-form-date">Date</FieldLabel>
                                     <DatePicker
                                         id="transaction-form-date"
                                         value={field.value}
@@ -260,56 +235,24 @@ export default function TransactionForm({
                                 </Field>
                             )}
                         />
-
                         <Controller
                             name="time"
                             control={form.control}
-                            render={({ field, fieldState }) => (
-                                <Field data-invalid={fieldState.invalid}>
-                                    <FieldLabel htmlFor="transaction-form-time">
-                                        Heure
-                                    </FieldLabel>
+                            render={({ field }) => (
+                                <Field>
+                                    <FieldLabel htmlFor="transaction-form-time">Heure</FieldLabel>
                                     <Input
                                         {...field}
                                         id="transaction-form-time"
                                         type="time"
-                                        step="60"
-                                        className="bg-background appearance-none
-                                            [&::-webkit-calendar-picker-indicator]:hidden
-                                            [&::-webkit-calendar-picker-indicator]:appearance-none
-                                            text-sm"
+                                        className="text-sm"
                                     />
                                 </Field>
                             )}
                         />
-
-                        {(form.formState.errors.date ||
-                            form.formState.errors.time) && (
-                            <FieldError
-                                className="col-span-2"
-                                errors={[
-                                    form.formState.errors.date,
-                                    form.formState.errors.time,
-                                ].filter(Boolean)}
-                            />
-                        )}
-
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="w-full col-span-2 text-muted-foreground"
-                            onClick={() =>
-                                form.setValue("time", "00:00", {
-                                    shouldValidate: true,
-                                })
-                            }
-                        >
-                            Heure inconnue
-                        </Button>
                     </div>
 
-                    {/* Description textuelle */}
+                    {/* Description */}
                     <Controller
                         name="description"
                         control={form.control}
@@ -321,49 +264,30 @@ export default function TransactionForm({
                                 <Input
                                     {...field}
                                     id="transaction-form-description"
-                                    aria-invalid={fieldState.invalid}
-                                    placeholder="Burger chez Paul..."
-                                    autoComplete="off"
+                                    placeholder="Ex: Burger chez Paul..."
                                 />
-                                {fieldState.invalid && (
-                                    <FieldError errors={[fieldState.error]} />
-                                )}
-                                <FieldDescription>
-                                    Une courte description aide à mieux suivre vos
-                                    dépenses.
-                                </FieldDescription>
+                                {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                                <FieldDescription>Aidez-vous à mieux suivre vos dépenses.</FieldDescription>
                             </Field>
                         )}
                     />
                 </FieldGroup>
             </form>
 
-            {/* Actions du formulaire */}
             <div className="mt-6 flex items-center justify-end gap-3">
                 <Button
                     type="button"
                     variant="outline"
-                    onClick={
-                        () => {
-                            form.reset(getCreateDefaultValues());
-                        }
-                    }
+                    onClick={() => form.reset(getCreateDefaultValues())}
                 >
                     Réinitialiser
                 </Button>
-
                 <Button
                     type="submit"
                     form="transaction-form"
-                    disabled={
-                        !form.formState.isValid ||
-                        form.formState.isSubmitting
-                    }
+                    disabled={!form.formState.isValid || form.formState.isSubmitting}
                 >
-                    {form.formState.isSubmitting
-                        ? "Enregistrement..."
-                        : mode === "create" ? "Ajouter" : "Enregistrer"
-                    }
+                    {form.formState.isSubmitting ? "Enregistrement..." : mode === "create" ? "Ajouter" : "Enregistrer"}
                 </Button>
             </div>
         </div>

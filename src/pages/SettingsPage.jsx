@@ -5,12 +5,19 @@ import {
     ChevronRight,
     User,
     Info,
-    ShieldCheck
+    ShieldCheck,
+    Moon,
+    Sun,
+    Monitor
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { useTheme } from "@/components/ui/theme-provider";
+import { Button } from "@/components/ui/button";
 
 export default function SettingsPage() {
+    const { theme, setTheme } = useTheme();
+
     const sections = [
         {
             title: "Organisation",
@@ -47,11 +54,10 @@ export default function SettingsPage() {
                 {
                     label: "Verrouillage local",
                     icon: ShieldCheck,
-                    description: "Code PIN ou Biométrie (Bientôt)",
-                    to: "#",
+                    description: "Protéger l'accès par code PIN",
+                    to: "/settings/security",
                     color: "text-emerald-500",
-                    bg: "bg-emerald-500/10",
-                    disabled: true
+                    bg: "bg-emerald-500/10"
                 }
             ]
         },
@@ -61,13 +67,19 @@ export default function SettingsPage() {
                 {
                     label: "À propos",
                     icon: Info,
-                    description: "Version 1.0.0 - Budget Manager",
+                    description: "Version 1.0.0 - Trackly",
                     to: "#",
                     color: "text-slate-500",
                     bg: "bg-slate-500/10"
                 }
             ]
         }
+    ];
+
+    const themeOptions = [
+        { value: "light", label: "Clair", icon: Sun },
+        { value: "dark", label: "Sombre", icon: Moon },
+        { value: "system", label: "Système", icon: Monitor },
     ];
 
     return (
@@ -88,6 +100,32 @@ export default function SettingsPage() {
             <div className="grow overflow-y-auto no-scrollbar pb-24">
                 <div className="p-4 space-y-8 max-w-2xl mx-auto">
                     
+                    {/* Sélecteur de Thème */}
+                    <div className="space-y-3">
+                        <h2 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground px-1">
+                            Apparence
+                        </h2>
+                        <div className="flex p-1 gap-1 bg-muted/50 rounded-2xl border border-border/50 backdrop-blur-sm">
+                            {themeOptions.map((option) => (
+                                <button
+                                    key={option.value}
+                                    onClick={() => setTheme(option.value)}
+                                    className={cn(
+                                        "flex-1 flex flex-col items-center gap-1.5 py-3 rounded-xl transition-all",
+                                        theme === option.value 
+                                            ? "bg-background text-primary shadow-sm ring-1 ring-border/50" 
+                                            : "text-muted-foreground hover:text-foreground"
+                                    )}
+                                >
+                                    <option.icon className="w-5 h-5" />
+                                    <span className="text-[10px] font-bold uppercase tracking-tighter">
+                                        {option.label}
+                                    </span>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
                     {sections.map((section, idx) => (
                         <div key={idx} className="space-y-3">
                             <h2 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground px-1">

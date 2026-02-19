@@ -10,8 +10,10 @@ import {
 import { Link } from "react-router-dom";
 import { useAccounts } from "@/utils/db/hooks";
 import { Button } from "@/components/ui/button";
-import { Plus, Edit2, Trash2, Wallet } from "lucide-react";
+import { Plus, Edit2, Trash2, Wallet, Search, X } from "lucide-react";
 import { useState } from "react";
+import { useDebounce } from "use-debounce";
+import { Input } from "@/components/ui/input";
 import { 
     Drawer, 
     DrawerContent, 
@@ -32,16 +34,20 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-
-/**
- * Page de gestion des comptes.
- * Permet de lister, ajouter, modifier et supprimer des sources d'argent.
- */
 export default function AccountsManagementPage() {
     const accounts = useAccounts();
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
     const [selectedAccount, setSelectedAccount] = useState(null);
     const [accountToDelete, setAccountToDelete] = useState(null);
+
+    // État de recherche local
+    const [searchQuery, setSearchQuery] = useState("");
+    const [debouncedSearchQuery] = useDebounce(searchQuery, 300);
+
+    // Filtrage des comptes
+    const filteredAccounts = accounts.filter(account => 
+        account.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase())
+    );
 
     // Ouvre le formulaire pour un nouveau compte
     const handleAdd = () => {
@@ -84,14 +90,18 @@ export default function AccountsManagementPage() {
                 title="Mes comptes" 
                 fallback="/settings" 
                 action={
-                    <Button onClick={handleAdd} size="sm" className="rounded-full gap-1.5 h-9 px-4">
-                        <Plus className="w-4 h-4" />
-                        <span className="hidden sm:inline">Nouveau</span>
+                    <Button 
+                        onClick={handleAdd} 
+                        variant="ghost" 
+                        size="icon" 
+                        className="rounded-full h-9 w-9"
+                    >
+                        <Plus className="w-6 h-6 text-foreground" />
                     </Button>
                 }
             />
             
-            <div className="px-4 py-3 shrink-0">
+            <div className="px-4 py-3 shrink-0 space-y-4">
                 <Breadcrumb>
                     <BreadcrumbList>
                         <BreadcrumbItem>
@@ -105,11 +115,31 @@ export default function AccountsManagementPage() {
                         </BreadcrumbItem>
                     </BreadcrumbList>
                 </Breadcrumb>
+
+                {/* Barre de recherche */}
+                <div className="relative group">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                    <Input
+                        type="text"
+                        placeholder="Rechercher un compte..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full pl-10 pr-10 h-11 rounded-2xl border-none bg-muted/50 focus-visible:ring-2 focus-visible:ring-primary/20 transition-all text-base"
+                    />
+                    {searchQuery && (
+                        <button
+                            onClick={() => setSearchQuery('')}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-muted rounded-full transition-colors"
+                        >
+                            <X className="h-4 w-4 text-muted-foreground" />
+                        </button>
+                    )}
+                </div>
             </div>
 
             <div className="grow overflow-y-auto no-scrollbar p-4 pb-24">
                 <div className="grid gap-3 max-w-2xl mx-auto">
-                    {accounts.map(account => (
+                    {filteredAccounts.map(account => (
                         <div 
                             key={account.id}
                             className="flex items-center justify-between p-4 rounded-2xl border border-border/50 bg-card/50 backdrop-blur-sm shadow-sm"
@@ -149,9 +179,11 @@ export default function AccountsManagementPage() {
                         </div>
                     ))}
 
-                    {accounts.length === 0 && (
+                    {filteredAccounts.length === 0 && (
                         <div className="text-center py-12">
-                            <p className="text-muted-foreground italic">Aucun compte configuré.</p>
+                            <p className="text-muted-foreground italic">
+                                {searchQuery ? "Aucun compte ne correspond à votre recherche." : "Aucun compte configuré."}
+                            </p>
                         </div>
                     )}
                 </div>

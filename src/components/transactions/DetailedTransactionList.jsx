@@ -5,21 +5,6 @@ import { useVirtualizer } from '@tanstack/react-virtual'
 import { TrendingDown, TrendingUp, ChevronRight, Inbox, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-// Helper functions for calculating totals
-const getMonthTotals = (transactions) => {
-    const income = transactions.filter(t => t.isIncome && !t.isTransfer).reduce((sum, t) => sum + t.amount, 0);
-    const expense = transactions.filter(t => !t.isIncome && !t.isTransfer).reduce((sum, t) => sum + Math.abs(t.amount), 0);
-    const balance = transactions.reduce((sum, t) => sum + t.amount, 0);
-    return { income, expense, balance };
-};
-
-const getDayTotals = (transactions) => {
-    const income = transactions.filter(t => t.isIncome && !t.isTransfer).reduce((sum, t) => sum + t.amount, 0);
-    const expense = transactions.filter(t => !t.isIncome && !t.isTransfer).reduce((sum, t) => sum + Math.abs(t.amount), 0);
-    const balance = transactions.reduce((sum, t) => sum + t.amount, 0);
-    return { income, expense, balance };
-};
-
 // --- Sub-Components ---
 
 function MonthHeaderRow({ month, totals, transactionCount, isCollapsed, onToggle }) {
@@ -98,11 +83,11 @@ function TransactionRow({ transaction, onClick }) {
                     {transaction.category?.name?.charAt(0) || "T"}
                 </div>
                 
-                <div className="flex-1 min-w-0">
-                    <h4 className="text-sm font-semibold text-foreground truncate leading-none mb-1">
+                <div className="flex-1 min-w-0 py-0.5">
+                    <h4 className="text-sm font-semibold text-foreground line-clamp-1 leading-snug mb-0.5">
                         {transaction.description}
                     </h4>
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground leading-relaxed">
                         <span className="truncate max-w-[100px]">{transaction.category?.name}</span>
                         <span className="opacity-30">•</span>
                         <span className="truncate max-w-[100px]">{transaction.account?.name}</span>
@@ -124,7 +109,11 @@ function TransactionRow({ transaction, onClick }) {
 }
 
 
-export default function DetailedTransactionList({ transactions, onTransactionClick }) {
+export default function DetailedTransactionList({ 
+    transactions, 
+    allTransactions = [], 
+    onTransactionClick 
+}) {
     const parentRef = useRef(null);
     const [collapsedMonths, setCollapsedMonths] = useState({});
 
@@ -135,7 +124,44 @@ export default function DetailedTransactionList({ transactions, onTransactionCli
         }));
     };
 
-    // Flatten data for virtualizer
+    // Pré-calculer les totaux pour TOUS les mois et jours disponibles
+    const periodTotals = useMemo(() => {
+        const monthTotals = {};
+        const dayTotals = {};
+
+        allTransactions.forEach(t => {
+            const mKey = format(t.date, "yyyy-MM");
+            const dKey = format(t.date, "yyyy-MM-dd");
+
+            if (!monthTotals[mKey]) monthTotals[mKey] = { income: 0, expense: 0, balance: 0 };
+            if (!dayTotals[dKey]) dayTotals[dKey] = { income: 0, expense: 0, balance: 0 };
+
+            const absAmount = Math.abs(t.amount);
+            
+            // On accumule pour le mois
+            if (t.isTransfer) {
+                // Pour le virement, on n'impacte que la balance (car exclu des flux globaux)
+                monthTotals[mKey].balance += t.amount;
+            } else {
+                if (t.isIncome) monthTotals[mKey].income += absAmount;
+                else monthTotals[mKey].expense += absAmount;
+                monthTotals[mKey].balance += t.amount;
+            }
+
+            // On accumule pour le jour
+            if (t.isTransfer) {
+                dayTotals[dKey].balance += t.amount;
+            } else {
+                if (t.isIncome) dayTotals[dKey].income += absAmount;
+                else dayTotals[dKey].expense += absAmount;
+                dayTotals[dKey].balance += t.amount;
+            }
+        });
+
+        return { monthTotals, dayTotals };
+    }, [allTransactions]);
+
+    // Aplatir les données pour le virtualiseur
     const rowData = useMemo(() => {
         const flatList = [];
         const groupedByMonth = transactions.reduce((acc, t) => {
@@ -151,7 +177,6 @@ export default function DetailedTransactionList({ transactions, onTransactionCli
 
         for (const monthKey of sortedMonths) {
             const monthTransactions = groupedByMonth[monthKey];
-            const monthTotals = getMonthTotals(monthTransactions);
             const isCollapsed = !!collapsedMonths[monthKey];
             
             flatList.push({
@@ -159,7 +184,7 @@ export default function DetailedTransactionList({ transactions, onTransactionCli
                 id: `month-${monthKey}`,
                 monthKey,
                 month: format(new Date(monthKey + "-01"), "MMMM yyyy", { locale: fr }),
-                totals: monthTotals,
+                totals: periodTotals.monthTotals[monthKey],
                 transactionCount: monthTransactions.length,
                 isCollapsed,
             });
@@ -178,13 +203,12 @@ export default function DetailedTransactionList({ transactions, onTransactionCli
 
                 for (const dayKey of sortedDays) {
                     const dayTransactions = groupedByDay[dayKey];
-                    const dayTotals = getDayTotals(dayTransactions);
 
                     flatList.push({
                         type: 'dayHeader',
                         id: `day-${dayKey}`,
                         date: new Date(dayKey),
-                        totals: dayTotals,
+                        totals: periodTotals.dayTotals[dayKey],
                     });
 
                     dayTransactions.sort((a, b) => b.date.getTime() - a.date.getTime());
@@ -200,7 +224,7 @@ export default function DetailedTransactionList({ transactions, onTransactionCli
             }
         }
         return flatList;
-    }, [transactions, collapsedMonths]);
+    }, [transactions, collapsedMonths, periodTotals]);
     
     // Virtualizer hook
     const rowVirtualizer = useVirtualizer({

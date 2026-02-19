@@ -13,7 +13,33 @@ export default defineConfig({
       },
     }),
     tailwindcss(),
-    VitePWA(),
+    VitePWA({
+      registerType: 'autoUpdate',
+      includeAssets: ['logo.svg', 'maskable_icon_x96.png'],
+      manifest: {
+        name: 'Trackly',
+        short_name: 'Trackly',
+        description: 'Suivi de dépenses intelligentes et gestion de budget locale-first',
+        theme_color: '#065f46',
+        background_color: '#ffffff',
+        display: 'standalone',
+        orientation: 'portrait',
+        icons: [
+          {
+            src: 'maskable_icon_x192.png',
+            sizes: '192x192',
+            type: 'image/png',
+            purpose: 'any maskable'
+          },
+          {
+            src: 'maskable_icon_x512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'any maskable'
+          }
+        ]
+      }
+    }),
   ],
   resolve: {
     alias: {

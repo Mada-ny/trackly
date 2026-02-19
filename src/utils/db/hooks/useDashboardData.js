@@ -174,7 +174,17 @@ export const useDashboardData = () => {
             labels: Array.from(dailyDataMap.keys()).map(date => format(new Date(date), 'dd MMM', { locale: fr })),
             income: Array.from(dailyDataMap.values()).map(d => d.income),
             expenses: Array.from(dailyDataMap.values()).map(d => d.expenses),
+            trend: [] // Sera calculé ci-dessous
         };
+
+        // Calcul du solde de départ (Solde total actuel - somme des changements sur les 30 derniers jours)
+        const totalNetChange = Array.from(dailyDataMap.values()).reduce((sum, d) => sum + (d.income - d.expenses), 0);
+        let runningBalance = totalBalance - totalNetChange;
+
+        dailyChart.trend = Array.from(dailyDataMap.values()).map(d => {
+            runningBalance += (d.income - d.expenses);
+            return runningBalance;
+        });
 
         const sortedCategories = Array.from(categoryBreakdownMap.entries())
             .sort((a, b) => b[1] - a[1])
