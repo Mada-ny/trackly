@@ -29,6 +29,8 @@ import {
     ArcElement,
     PointElement,
     LineElement,
+    LineController,
+    BarController,
     Filler
 } from 'chart.js';
 import { Bar, Doughnut } from 'react-chartjs-2';
@@ -47,6 +49,8 @@ ChartJS.register(
     ArcElement,
     PointElement,
     LineElement,
+    LineController,
+    BarController,
     Filler
 );
 
