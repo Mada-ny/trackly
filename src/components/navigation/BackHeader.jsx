@@ -5,6 +5,7 @@ import { useNavigate, useLocation } from "react-router-dom"
 export function BackHeader({
     fallback = "/transactions",
     title = "",
+    description = "",
     action = null
 }) {
     const navigate = useNavigate()
@@ -14,28 +15,35 @@ export function BackHeader({
 
     return (
         <header className="shrink-0 bg-background/80 backdrop-blur-md border-b border-border/50 sticky top-0 z-30">
-            <div className="px-4 pt-6 pb-4 flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2 overflow-hidden">
-                    <Button 
-                        onClick={handleBack} 
-                        variant="ghost" 
-                        size="icon-sm"
-                        className="rounded-full h-9 w-9 -ml-2"
-                    >
-                        <ChevronLeft className="w-6 h-6 text-foreground" />
-                    </Button>
-                    
-                    {title && (
-                        <h1 className="text-2xl font-black tracking-tight text-foreground truncate">
-                            {title}
-                        </h1>
+            <div className="px-4 pt-6 pb-4 space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 overflow-hidden">
+                        <Button 
+                            onClick={handleBack} 
+                            variant="ghost" 
+                            size="icon-sm"
+                            className="rounded-full h-9 w-9 -ml-2"
+                        >
+                            <ChevronLeft className="w-6 h-6 text-foreground" />
+                        </Button>
+                        
+                        {title && (
+                            <h1 className="text-2xl font-black tracking-tight text-foreground truncate">
+                                {title}
+                            </h1>
+                        )}
+                    </div>
+
+                    {action && (
+                        <div className="shrink-0">
+                            {action}
+                        </div>
                     )}
                 </div>
-
-                {action && (
-                    <div className="shrink-0">
-                        {action}
-                    </div>
+                {description && (
+                    <p className="text-xs font-medium text-muted-foreground ml-9">
+                        {description}
+                    </p>
                 )}
             </div>
         </header>

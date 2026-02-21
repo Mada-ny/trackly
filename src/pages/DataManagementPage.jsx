@@ -103,7 +103,11 @@ export default function DataManagementPage() {
 
     return (
         <div className="flex flex-col h-screen bg-background">
-            <BackHeader title="Données & Sauvegarde" fallback="/settings" />
+            <BackHeader 
+                title="Données & Sauvegarde" 
+                description="Exportez et importez vos données locales"
+                fallback="/settings" 
+            />
             
             <div className="px-4 py-3 shrink-0">
                 <Breadcrumb>

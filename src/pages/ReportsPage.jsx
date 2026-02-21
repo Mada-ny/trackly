@@ -9,8 +9,7 @@ import {
     BarChart3,
     PieChart as PieIcon,
     Target,
-    ArrowUpRight,
-    ArrowDownRight
+    HelpCircle
 } from "lucide-react";
 import { useMonthlyReportData } from "@/utils/db/hooks";
 import { format, addMonths, subMonths } from "date-fns";
@@ -30,6 +29,7 @@ import {
 } from 'chart.js';
 import { useCurrency } from "@/utils/number/CurrencyProvider";
 import { AmountDisplay } from "@/components/ui/amount-display";
+import { startReportsTour } from "@/utils/navigation/tour";
 
 ChartJS.register(
     CategoryScale,
@@ -97,21 +97,36 @@ export default function ReportsPage() {
         <div className="flex flex-col h-screen bg-background">
             <div className="shrink-0 glass-header border-b border-border/50 sticky top-0 z-30">
                 <div className="px-4 pt-6 pb-4 space-y-4">
-                    <div className="flex items-center justify-between">
-                        <h1 className="text-2xl font-black tracking-tight text-foreground">
-                            Rapports
-                        </h1>
-                        <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            className="text-[10px] font-black uppercase tracking-widest text-muted-foreground"
-                            onClick={handleReset}
-                        >
-                            Aujourd'hui
-                        </Button>
+                    <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <h1 className="text-2xl font-black tracking-tight text-foreground">
+                                    Rapports
+                                </h1>
+                                <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="rounded-full h-8 w-8 text-muted-foreground hover:text-primary transition-colors"
+                                    onClick={() => startReportsTour()}
+                                >
+                                    <HelpCircle className="w-4.5 h-4.5" />
+                                </Button>
+                            </div>
+                            <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="text-[10px] font-black uppercase tracking-widest text-muted-foreground"
+                                onClick={handleReset}
+                            >
+                                Aujourd'hui
+                            </Button>
+                        </div>
+                        <p className="text-xs font-medium text-muted-foreground">
+                            Analyse de votre santé financière
+                        </p>
                     </div>
 
-                    <div className="flex items-center justify-between bg-muted/50 p-1.5 rounded-2xl">
+                    <div id="tour-reports-period" className="flex items-center justify-between bg-muted/50 p-1.5 rounded-2xl">
                         <Button variant="ghost" size="icon" className="rounded-xl h-9 w-9" onClick={handlePrevMonth}>
                             <ChevronLeft className="w-5 h-5" />
                         </Button>

@@ -98,6 +98,7 @@ export default function CategoriesManagementPage() {
         <div className="flex flex-col h-screen bg-background">
             <BackHeader 
                 title="Mes catégories" 
+                description="Organisez vos types de transactions"
                 fallback="/settings" 
                 action={
                     <Button 

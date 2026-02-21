@@ -26,6 +26,7 @@ export default function DesktopNav() {
                         <TooltipTrigger asChild>
                             <NavLink 
                                 to={link.to}
+                                id={`nav-${link.to === '/' ? 'dashboard' : link.to.replace('/', '')}`}
                                 className={navLinkClass}
                             >
                                 <link.icon className="size-6" />
@@ -44,6 +45,7 @@ export default function DesktopNav() {
                         <TooltipTrigger asChild>
                             <NavLink 
                                 to={settingsLink.to}
+                                id="nav-settings"
                                 className={navLinkClass}
                             >
                                 <settingsLink.icon className="size-6" />

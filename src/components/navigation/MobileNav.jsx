@@ -9,6 +9,7 @@ export default function MobileNav() {
                 <NavLink
                     key={link.to}
                     to={link.to}
+                    id={`nav-${link.to === '/' ? 'dashboard' : link.to.replace('/', '')}`}
                     className={({ isActive }) =>
                         cn(
                             "flex-1 flex flex-col items-center justify-center py-2 px-1 rounded-[1.5rem] transition-all duration-300 min-w-[70px] max-w-[90px]",

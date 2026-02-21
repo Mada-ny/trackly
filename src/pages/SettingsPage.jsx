@@ -15,9 +15,10 @@ import {
     Smartphone,
     Heart,
     Github,
-    ExternalLink
+    ExternalLink,
+    Compass
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/components/ui/theme-provider";
 import { Button } from "@/components/ui/button";
@@ -32,11 +33,13 @@ import {
     DrawerHeader,
     DrawerTitle,
 } from "@/components/ui/drawer";
+import { startOnboardingTour } from "@/utils/navigation/tour";
 
 export default function SettingsPage() {
     const { theme, setTheme } = useTheme();
     const { currency, setCurrency, supportedCurrencies } = useCurrency();
     const [isAboutOpen, setIsAboutOpen] = useState(false);
+    const navigate = useNavigate();
 
     const sections = [
         {
@@ -80,6 +83,14 @@ export default function SettingsPage() {
             icon: Smartphone,
             items: [
                 {
+                    label: "Guide d'utilisation",
+                    icon: Compass,
+                    description: "Relancer le tutoriel interactif",
+                    onClick: () => startOnboardingTour(navigate, true),
+                    color: "text-emerald-500",
+                    bg: "bg-emerald-500/10"
+                },
+                {
                     label: "À propos",
                     icon: Info,
                     description: "Version 1.1.1 - Trackly",
@@ -101,7 +112,7 @@ export default function SettingsPage() {
         <div className="flex flex-col h-screen bg-background">
             {/* En-tête */}
             <div className="shrink-0 bg-background/80 backdrop-blur-md border-b border-border/50 sticky top-0 z-30">
-                <div className="px-4 pt-6 pb-4">
+                <div className="px-4 pt-6 pb-4 space-y-2">
                     <h1 className="text-2xl font-black tracking-tight text-foreground">
                         Paramètres
                     </h1>

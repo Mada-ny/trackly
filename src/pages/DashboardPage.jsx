@@ -14,7 +14,8 @@ import {
     ArrowRightLeft,
     Calendar,
     Target,
-    Activity
+    Activity,
+    HelpCircle
 } from "lucide-react";
 import { useDashboardData } from "@/utils/db/hooks";
 import { 
@@ -40,6 +41,7 @@ import { Button } from "@/components/ui/button";
 import { useCurrency } from "@/utils/number/CurrencyProvider";
 import { AmountDisplay } from "@/components/ui/amount-display";
 import { FAB } from "@/components/ui/FAB";
+import { startDashboardTour, startOnboardingTour } from "@/utils/navigation/tour";
 
 ChartJS.register(
     CategoryScale,
@@ -63,6 +65,16 @@ export default function DashboardPage() {
     const navigate = useNavigate();
     const { formatCurrency } = useCurrency();
     const [showLoading, setShowLoading] = useState(false);
+
+    // Lancer le tour d'onboarding au premier chargement
+    useEffect(() => {
+        if (data?.isLoaded) {
+            const timer = setTimeout(() => {
+                startOnboardingTour();
+            }, 1000);
+            return () => clearTimeout(timer);
+        }
+    }, [data?.isLoaded]);
 
     // Éviter le flicker pour les chargements rapides
     useEffect(() => {
@@ -176,9 +188,19 @@ export default function DashboardPage() {
         <div className="flex flex-col h-screen bg-background">
             <div className="shrink-0 glass-header border-b border-border/50 sticky top-0 z-30">
                 <div className="px-4 pt-6 pb-4 space-y-2">
-                    <h1 className="text-2xl font-black tracking-tight text-foreground">
-                        Tableau de bord
-                    </h1>
+                    <div className="flex items-center justify-between">
+                        <h1 className="text-2xl font-black tracking-tight text-foreground">
+                            Tableau de bord
+                        </h1>
+                        <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="rounded-full text-muted-foreground hover:text-primary transition-colors"
+                            onClick={() => startDashboardTour()}
+                        >
+                            <HelpCircle className="w-5 h-5" />
+                        </Button>
+                    </div>
                     <p className="text-xs font-medium text-muted-foreground">
                         Aperçu de vos finances
                     </p>
@@ -206,6 +228,7 @@ export default function DashboardPage() {
                         </div>
                         
                         <div 
+                            id="tour-balance-carousel"
                             ref={carouselRef}
                             onScroll={handleScroll}
                             className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory no-scrollbar px-4 -mx-4"
@@ -667,3 +690,4 @@ function QuickStatsCard({ title, expenses, income }) {
         </Card>
     );
 }
+

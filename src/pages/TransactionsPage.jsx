@@ -8,14 +8,15 @@ import { useEnrichedTransactions } from "@/utils/db/hooks/transactions/useEnrich
 import { useTransactionFilters } from "@/utils/db/hooks/transactions/useTransactionFilters";
 import { useFilteredTransactions } from "@/utils/db/hooks/transactions/useFilteredTransactions";
 import { useAccounts, useCategories } from "@/utils/db/hooks";
-import { Search, X, SlidersHorizontal } from "lucide-react";
+import { Search, X, SlidersHorizontal, HelpCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { db } from "@/utils/db/schema";
 import { format } from "date-fns";
-import { FAB } from "@/components/ui/FAB"
+import { FAB } from "@/components/ui/FAB";
+import { startTransactionsTour } from "@/utils/navigation/tour";
 
 export default function TransactionsPage() {
     const navigate = useNavigate();
@@ -91,29 +92,43 @@ export default function TransactionsPage() {
         <div className="flex flex-col h-screen bg-background">
             <div className="shrink-0 glass-header">
                 <div className="px-4 pt-6 pb-4 space-y-4">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <h1 className="text-2xl font-black tracking-tight text-foreground">
-                                Transactions
-                            </h1>
+                    <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <h1 className="text-2xl font-black tracking-tight text-foreground">
+                                    Transactions
+                                </h1>
+                                <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="rounded-full h-8 w-8 text-muted-foreground hover:text-primary transition-colors"
+                                    onClick={() => startTransactionsTour()}
+                                >
+                                    <HelpCircle className="w-4.5 h-4.5" />
+                                </Button>
+                            </div>
+                            <Button
+                                id="tour-transactions-filters"
+                                variant="secondary"
+                                size="sm"
+                                className="rounded-full gap-2 h-9 px-4 font-semibold shadow-sm"
+                                onClick={() => setFilterDrawerOpen(true)}
+                            >
+                                <SlidersHorizontal className="h-4 w-4" />
+                                <span>Filtres</span>
+                                {activeFilterCount > 0 && (
+                                    <span className="flex items-center justify-center bg-primary text-primary-foreground text-[10px] rounded-full h-5 min-w-5 px-1 ml-1">
+                                        {activeFilterCount}
+                                    </span>
+                                )}
+                            </Button>
                         </div>
-                        <Button
-                            variant="secondary"
-                            size="sm"
-                            className="rounded-full gap-2 h-9 px-4 font-semibold shadow-sm"
-                            onClick={() => setFilterDrawerOpen(true)}
-                        >
-                            <SlidersHorizontal className="h-4 w-4" />
-                            <span>Filtres</span>
-                            {activeFilterCount > 0 && (
-                                <span className="flex items-center justify-center bg-primary text-primary-foreground text-[10px] rounded-full h-5 min-w-5 px-1 ml-1">
-                                    {activeFilterCount}
-                                </span>
-                            )}
-                        </Button>
+                        <p className="text-xs font-medium text-muted-foreground">
+                            Historique complet de vos flux
+                        </p>
                     </div>
 
-                    <div className="relative group">
+                    <div id="tour-transactions-search" className="relative group">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
                         <Input
                             type="text"

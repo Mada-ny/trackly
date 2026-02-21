@@ -46,6 +46,7 @@ export function FAB({ to = "/transactions/new" }) {
 
     return (
         <Button
+            id="tour-fab-button"
             onClick={() => 
                 navigate(to, { 
                     state: { from: location.pathname + location.search } 

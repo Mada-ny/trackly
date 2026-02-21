@@ -91,6 +91,7 @@ export default function AccountsManagementPage() {
         <div className="flex flex-col h-screen bg-background">
             <BackHeader 
                 title="Mes comptes" 
+                description="Gérez vos sources d'argent et soldes"
                 fallback="/settings" 
                 action={
                     <Button 

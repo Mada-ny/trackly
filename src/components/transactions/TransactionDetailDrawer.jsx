@@ -53,12 +53,14 @@ export default function TransactionDetailDrawer({
                         }`}
                         onClick={() => setIsCompact(!isCompact)}
                     >
-                        <span>{transaction.isIncome ? '+' : '-'}</span>
-                        <AmountDisplay 
-                            amount={Math.abs(transaction.amount)} 
-                            compact={isCompact}
-                            className="text-3xl font-bold"
-                        />
+                        <div className="flex items-center">
+                            <span>{transaction.isIncome ? '+' : '-'}</span>
+                            <AmountDisplay 
+                                amount={Math.abs(transaction.amount)} 
+                                compact={isCompact}
+                                className="text-3xl font-bold"
+                            />
+                        </div>
                     </div>
                 </DrawerHeader>
 
