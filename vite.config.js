@@ -14,7 +14,7 @@ export default defineConfig({
     }),
     tailwindcss(),
     VitePWA({
-      registerType: 'autoUpdate',
+      registerType: 'prompt',
       includeAssets: ['logo.svg', 'maskable_icon_x96.png'],
       manifest: {
         name: 'Trackly',

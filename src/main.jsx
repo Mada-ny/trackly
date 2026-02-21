@@ -5,12 +5,9 @@ import { router } from './router'
 import './index.css'
 import './utils/db/schema'
 import { Toaster } from "@/components/ui/sonner"
-import { registerSW } from 'virtual:pwa-register'
 import { ThemeProvider } from './components/ui/theme-provider'
 import { CurrencyProvider } from './utils/number/CurrencyProvider'
-
-// Enregistrement du Service Worker pour le support PWA
-registerSW({ immediate: true })
+import ReloadPrompt from './components/navigation/ReloadPrompt'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
@@ -18,6 +15,7 @@ createRoot(document.getElementById('root')).render(
       <CurrencyProvider>
         <RouterProvider router={router} />
         <Toaster />
+        <ReloadPrompt />
       </CurrencyProvider>
     </ThemeProvider>
   </StrictMode>,
