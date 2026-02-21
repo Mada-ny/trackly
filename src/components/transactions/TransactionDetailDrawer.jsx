@@ -23,6 +23,8 @@ import { Button } from "../ui/button";
 import { Calendar, CreditCard, Tag, Edit3, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { AmountDisplay } from "@/components/ui/amount-display";
+import { useState } from "react";
 
 export default function TransactionDetailDrawer({ 
     open, 
@@ -31,6 +33,8 @@ export default function TransactionDetailDrawer({
     onEdit, 
     onDelete 
 }) {
+    const [isCompact, setIsCompact] = useState(false);
+
     if (!transaction) return null;
     
     return (
@@ -41,17 +45,21 @@ export default function TransactionDetailDrawer({
                         {transaction.description}
                     </DrawerTitle>
                 
-                    <DrawerDescription
-                        className={`text-3xl font-bold flex items-center justify-center ${
+                    <div
+                        className={`text-3xl font-bold flex items-center justify-center cursor-pointer select-none ${
                         transaction.isIncome
                             ? "text-teal-600 dark:text-teal-400"
                             : "text-orange-600 dark:text-orange-400"
                         }`}
+                        onClick={() => setIsCompact(!isCompact)}
                     >
-                        {transaction.isIncome ? '+' : '-'}
-                        {Math.abs(transaction.amount).toLocaleString()}
-                        <span className="text-xl text-gray-500 dark:text-gray-400 ml-1.5">FCFA</span>
-                    </DrawerDescription>
+                        <span>{transaction.isIncome ? '+' : '-'}</span>
+                        <AmountDisplay 
+                            amount={Math.abs(transaction.amount)} 
+                            compact={isCompact}
+                            className="text-3xl font-bold"
+                        />
+                    </div>
                 </DrawerHeader>
 
                 <div className="px-6 py-6 space-y-4">

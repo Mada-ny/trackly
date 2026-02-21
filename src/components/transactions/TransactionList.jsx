@@ -2,12 +2,15 @@ import { Badge } from "../ui/badge";
 import { getRelativeDate } from "@/utils/date/getRelativeDate";
 import { TrendingUp, TrendingDown } from "lucide-react";
 import { Card, CardContent } from "../ui/card";
+import { useCurrency } from "@/utils/number/CurrencyProvider";
+import { AmountDisplay } from "../ui/amount-display";
+import { cn } from "@/lib/utils";
 
 export default function TransactionList({
     transactions = [],
     variant = "mobile"
 }) {
-
+    const { formatCurrency } = useCurrency();
 
     if (variant === "mobile") {
         return (
@@ -22,11 +25,12 @@ export default function TransactionList({
                                 <CardContent className="p-0">
                                     <div className="flex items-start justify-between gap-3">
                                         <div className="flex items-start gap-3 flex-1 min-w-0">
-                                            <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${
+                                            <div className={cn(
+                                                "w-11 h-11 rounded-xl flex items-center justify-center shrink-0",
                                                 transaction.isIncome 
                                                     ? 'bg-teal-50 dark:bg-teal-950/30' 
                                                     : 'bg-orange-50 dark:bg-orange-950/30'
-                                            }`}>
+                                            )}>
                                                 {transaction.isIncome ? (
                                                     <TrendingUp className="w-5 h-5 text-teal-600 dark:text-teal-400" />
                                                 ) : (
@@ -49,15 +53,23 @@ export default function TransactionList({
                                             </div>
                                         </div>
 
-                                        <div className="flex items-center gap-2 shrink-0">
-                                            <div className="text-right">
-                                                <div className={`font-bold text-base ${
-                                                                                                transaction.isIncome 
-                                                                                                    ? "text-teal-600 dark:text-teal-400" 
-                                                                                                    : "text-orange-600 dark:text-orange-400"
-                                                                                            }`}>
-                                                                                                {transaction.isIncome ? '+' : '-'}{Math.abs(transaction.amount).toLocaleString()} FCFA
-                                                                                            </div>                                                <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">
+                                        <div className="flex items-center gap-2 shrink-0 max-w-[40%]">
+                                            <div className="text-right min-w-0 w-full">
+                                                <div className={cn(
+                                                    "font-bold text-base flex justify-end",
+                                                    transaction.isIncome 
+                                                        ? "text-teal-600 dark:text-teal-400" 
+                                                        : "text-orange-600 dark:text-orange-400"
+                                                )}>
+                                                    <span>{transaction.isIncome ? '+' : '-'}</span>
+                                                    <AmountDisplay 
+                                                        amount={Math.abs(transaction.amount)} 
+                                                        compact={true}
+                                                        className="text-base"
+                                                        showMarquee={false}
+                                                    />
+                                                </div>
+                                                <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">
                                                     {getRelativeDate(transaction.date)}
                                                 </span>
                                             </div>
@@ -76,16 +88,20 @@ export default function TransactionList({
                 {transactions.map((transaction) => 
                     (
                         <li key={transaction.id} className="flex gap-12 items-center py-2">
-                            <div className="flex flex-col">
+                            <div className="flex flex-col flex-1">
                                 <span className="font-semibold">{ transaction.description }</span>
                                 <span className="text-sm text-gray-500 font-medium">
                                     {getRelativeDate(transaction.date)}
                                 </span>
                             </div>
-                            <div className="flex flex-col items-end">
-                                <span className={`font-semibold ${transaction.isIncome ? "text-teal-400" : "text-orange-400" } `}>
-                                    {transaction.isIncome ? '+' : '-'}{Math.abs(transaction.amount).toLocaleString()} FCFA
-                                </span>
+                            <div className="flex flex-col items-end max-w-[200px]">
+                                <div className={cn(
+                                    "font-semibold flex items-center",
+                                    transaction.isIncome ? "text-teal-400" : "text-orange-400"
+                                )}>
+                                    <span>{transaction.isIncome ? '+' : '-'}</span>
+                                    <AmountDisplay amount={Math.abs(transaction.amount)} compact={true} />
+                                </div>
                                 <span className="text-sm font-medium text-gray-500">
                                     {transaction.category?.name}
                                 </span>

@@ -4,6 +4,7 @@ import { useEntity } from "./useEntity";
 import { useSummaryData } from "./useSummaryData";
 import { useDashboardData } from "./useDashboardData";
 import { useMonthlyReportData } from "./useMonthlyReportData";
+import { useSettings } from "./useSettings";
 
 // Hooks de données de liste
 export const useAccounts = () => useDexieTable(db.accounts);
@@ -15,5 +16,5 @@ export const useAccount = (id) => useEntity(db.accounts, id);
 export const useCategory = (id) => useEntity(db.categories, id);
 export const useTransaction = (id) => useEntity(db.transactions, id); 
 
-// Hooks de données résumées
-export { useSummaryData, useDashboardData, useMonthlyReportData };
+// Hooks de données résumées et paramètres
+export { useSummaryData, useDashboardData, useMonthlyReportData, useSettings };

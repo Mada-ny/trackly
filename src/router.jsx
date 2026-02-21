@@ -13,7 +13,6 @@ import DataManagementPage from "./pages/DataManagementPage";
 import AccountsManagementPage from "./pages/AccountsManagementPage";
 import CategoriesManagementPage from "./pages/CategoriesManagementPage";
 import ReportsPage from "./pages/ReportsPage";
-import SecuritySettingsPage from "./pages/SecuritySettingsPage";
 
 export const router = createBrowserRouter([
     {
@@ -49,7 +48,6 @@ export const router = createBrowserRouter([
                     { path: "data", element: <DataManagementPage /> },
                     { path: "accounts", element: <AccountsManagementPage /> },
                     { path: "categories", element: <CategoriesManagementPage /> },
-                    { path: "security", element: <SecuritySettingsPage /> },
                 ]
             },
         ]

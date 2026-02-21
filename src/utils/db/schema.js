@@ -18,8 +18,27 @@ db.version(1).stores({
     transactions: "++id, date, accountId, categoryId, amount, transferId, [accountId+date], [date+categoryId], [accountId+categoryId]"
 });
 
+// Version 2 : Ajout de la table des paramètres
+db.version(2).stores({
+    settings: "id"
+}).upgrade(async tx => {
+    // Initialisation des paramètres par défaut lors de la migration
+    await tx.settings.add({
+        id: "user_preferences",
+        currency: "XOF",
+        language: "fr"
+    });
+});
+
 // Données initiales lors de la première création de la base
 db.on("populate", function(transaction) {
+    // Paramètres par défaut
+    transaction.settings.add({
+        id: "user_preferences",
+        currency: "XOF",
+        language: "fr"
+    });
+
     // Catégories par défaut avec quelques limites suggérées
     transaction.categories.bulkAdd([
         { name: "Alimentation", type: "expense", monthlyLimit: 150000 },

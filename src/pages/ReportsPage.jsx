@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { 
     ChevronLeft, 
     ChevronRight, 
@@ -10,11 +10,10 @@ import {
     PieChart as PieIcon,
     Target,
     ArrowUpRight,
-    ArrowDownRight,
-    Search
+    ArrowDownRight
 } from "lucide-react";
 import { useMonthlyReportData } from "@/utils/db/hooks";
-import { format, addMonths, subMonths, startOfMonth } from "date-fns";
+import { format, addMonths, subMonths } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -29,6 +28,8 @@ import {
     Tooltip, 
     Legend 
 } from 'chart.js';
+import { useCurrency } from "@/utils/number/CurrencyProvider";
+import { AmountDisplay } from "@/components/ui/amount-display";
 
 ChartJS.register(
     CategoryScale,
@@ -42,35 +43,35 @@ ChartJS.register(
 export default function ReportsPage() {
     const [selectedDate, setSelectedDate] = useState(new Date());
     const data = useMonthlyReportData(selectedDate);
+    const { formatCurrency } = useCurrency();
+    const [showLoading, setShowLoading] = useState(false);
+
+    useEffect(() => {
+        if (!data) {
+            const timer = setTimeout(() => setShowLoading(true), 200);
+            return () => clearTimeout(timer);
+        }
+    }, [data]);
 
     const handlePrevMonth = () => setSelectedDate(prev => subMonths(prev, 1));
     const handleNextMonth = () => setSelectedDate(prev => addMonths(prev, 1));
     const handleReset = () => setSelectedDate(new Date());
 
-    const formatCurrency = (amount) => {
-        return new Intl.NumberFormat('fr-FR', {
-            style: 'currency',
-            currency: 'XOF',
-            maximumFractionDigits: 0,
-        }).format(amount);
-    };
-
-    if (!data) return (
-        <div className="flex flex-col h-screen bg-background">
-            <div className="glass-header px-4 pt-6 pb-4 space-y-4 shrink-0 border-b border-border/50">
-                <div className="h-8 w-48 bg-muted animate-pulse rounded-lg" />
-                <div className="h-10 w-full bg-muted animate-pulse rounded-xl" />
-            </div>
-            <div className="p-4 space-y-6">
-                <div className="grid grid-cols-3 gap-3">
-                    <div className="h-24 bg-muted animate-pulse rounded-2xl" />
-                    <div className="h-24 bg-muted animate-pulse rounded-2xl" />
-                    <div className="h-24 bg-muted animate-pulse rounded-2xl" />
-                </div>
-                <div className="h-64 bg-muted animate-pulse rounded-3xl" />
-            </div>
+    if (data?.isError) return (
+        <div className="flex h-screen items-center justify-center p-8 text-center flex-col gap-4">
+            <div className="text-destructive font-bold">Erreur lors de la lecture de la base de données</div>
+            <Button onClick={() => window.location.reload()}>Réessayer</Button>
         </div>
     );
+
+    if (!data || !data.isLoaded) {
+        if (!showLoading) return <div className="h-screen bg-background" />;
+        return (
+            <div className="flex h-screen items-center justify-center bg-background">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+            </div>
+        );
+    }
 
     const { summary, topExpenseCategories, dailyChart, budgets, transactionCount } = data;
 
@@ -94,7 +95,6 @@ export default function ReportsPage() {
 
     return (
         <div className="flex flex-col h-screen bg-background">
-            {/* Header avec sélecteur de mois */}
             <div className="shrink-0 glass-header border-b border-border/50 sticky top-0 z-30">
                 <div className="px-4 pt-6 pb-4 space-y-4">
                     <div className="flex items-center justify-between">
@@ -131,7 +131,6 @@ export default function ReportsPage() {
             <div className="grow overflow-y-auto no-scrollbar">
                 <div className="p-4 pb-24 space-y-6 max-w-4xl mx-auto">
                     
-                    {/* Résumé en cartes */}
                     <div className="grid grid-cols-3 gap-3">
                         <ReportMiniCard 
                             title="Entrées" 
@@ -153,7 +152,6 @@ export default function ReportsPage() {
                         />
                     </div>
 
-                    {/* Carte Taux d'épargne */}
                     <Card className="bg-primary/5 border-primary/10 overflow-hidden rounded-3xl">
                         <CardContent className="p-5 flex items-center justify-between">
                             <div className="space-y-1">
@@ -169,8 +167,7 @@ export default function ReportsPage() {
                         </CardContent>
                     </Card>
 
-                    {/* Graphique d'activité du mois */}
-                    <Card className="bg-white/60 dark:bg-white/[0.02] backdrop-blur-md border-border/50 shadow-sm rounded-3xl overflow-hidden flex flex-col">
+                    <Card className="bg-white/60 dark:bg-white/2 backdrop-blur-md border-border/50 shadow-sm rounded-3xl overflow-hidden flex flex-col">
                         <CardHeader className="pb-4">
                             <div className="flex items-center justify-between">
                                 <div>
@@ -204,7 +201,6 @@ export default function ReportsPage() {
                         </CardContent>
                     </Card>
 
-                    {/* Top Catégories de dépenses */}
                     <section className="space-y-3">
                         <div className="flex items-center gap-2 px-1">
                             <PieIcon className="w-4 h-4 text-primary" />
@@ -212,20 +208,7 @@ export default function ReportsPage() {
                         </div>
                         <div className="grid gap-3">
                             {topExpenseCategories.slice(0, 5).map((cat, i) => (
-                                <div key={cat.name} className="flex items-center justify-between p-4 bg-white/60 dark:bg-white/[0.02] backdrop-blur-md border border-border/50 rounded-2xl shadow-sm">
-                                    <div className="flex items-center gap-3 min-w-0">
-                                        <div className="w-8 h-8 rounded-xl bg-red-500/10 text-red-600 flex items-center justify-center text-[10px] font-black shrink-0">
-                                            #{i + 1}
-                                        </div>
-                                        <span className="text-sm font-bold truncate">{cat.name}</span>
-                                    </div>
-                                    <div className="text-right">
-                                        <p className="text-sm font-black tabular-nums">{formatCurrency(cat.amount)}</p>
-                                        <p className="text-[10px] font-bold text-muted-foreground uppercase opacity-60">
-                                            {((cat.amount / summary.totalExpenses) * 100).toFixed(0)}% du total
-                                        </p>
-                                    </div>
-                                </div>
+                                <CategoryReportItem key={cat.name} category={cat} index={i} totalExpenses={summary.totalExpenses} />
                             ))}
                             {topExpenseCategories.length === 0 && (
                                 <div className="text-center py-8 opacity-40 italic text-xs">Aucune dépense ce mois-ci</div>
@@ -233,7 +216,6 @@ export default function ReportsPage() {
                         </div>
                     </section>
 
-                    {/* Performance des Budgets */}
                     {budgets.length > 0 && (
                         <section className="space-y-3 pt-2">
                             <div className="flex items-center gap-2 px-1">
@@ -242,7 +224,7 @@ export default function ReportsPage() {
                             </div>
                             <div className="grid gap-4">
                                 {budgets.map(budget => (
-                                    <Card key={budget.id} className="bg-white/60 dark:bg-white/[0.02] backdrop-blur-md border-border/50 p-5 shadow-sm rounded-2xl">
+                                    <Card key={budget.id} className="bg-white/60 dark:bg-white/2 backdrop-blur-md border-border/50 p-5 shadow-sm rounded-2xl">
                                         <div className="flex justify-between items-center mb-3">
                                             <div className="flex flex-col gap-0.5">
                                                 <span className="text-sm font-black tracking-tight">{budget.name}</span>
@@ -279,28 +261,59 @@ export default function ReportsPage() {
 }
 
 function ReportMiniCard({ title, amount, icon, color }) {
+    const [isCompact, setIsCompact] = useState(true);
     const isPrimary = color === 'primary';
     const isRed = color === 'red';
     const isEmerald = color === 'emerald';
+    const displayAmount = isPrimary ? amount : Math.abs(amount);
 
     return (
-        <div className={cn(
-            "p-3 rounded-2xl border flex flex-col gap-2 shadow-sm transition-all animate-in fade-in zoom-in duration-300",
-            isPrimary && "bg-primary/10 border-primary/10 text-primary",
-            isRed && "bg-red-500/5 border-red-500/10 text-red-600",
-            isEmerald && "bg-emerald-500/5 border-emerald-500/10 text-emerald-600"
-        )}>
+        <div 
+            className={cn(
+                "p-3 rounded-2xl border flex flex-col gap-2 shadow-sm transition-all animate-in fade-in zoom-in duration-300 cursor-pointer select-none",
+                isPrimary && "bg-primary/10 border-primary/10 text-primary",
+                isRed && "bg-red-500/5 border-red-500/10 text-red-600",
+                isEmerald && "bg-emerald-500/5 border-emerald-500/10 text-emerald-600"
+            )}
+            onClick={() => setIsCompact(!isCompact)}
+        >
             <div className="flex items-center gap-1.5 opacity-70">
                 {icon}
                 <span className="text-[9px] font-black uppercase tracking-widest truncate">{title}</span>
             </div>
-            <p className="text-xs font-black tabular-nums tracking-tighter truncate">
-                {new Intl.NumberFormat('fr-FR', {
-                    style: 'currency',
-                    currency: 'XOF',
-                    maximumFractionDigits: 0,
-                }).format(Math.abs(amount))}
-            </p>
+            <AmountDisplay 
+                amount={displayAmount} 
+                compact={isCompact} 
+                className="text-xs font-black tabular-nums tracking-tighter" 
+            />
+        </div>
+    );
+}
+
+function CategoryReportItem({ category, index, totalExpenses }) {
+    const [isCompact, setIsCompact] = useState(true);
+    
+    return (
+        <div 
+            className="flex items-center justify-between p-4 bg-white/60 dark:bg-white/2 backdrop-blur-md border border-border/50 rounded-2xl shadow-sm cursor-pointer select-none"
+            onClick={() => setIsCompact(!isCompact)}
+        >
+            <div className="flex items-center gap-3 min-w-0 flex-1 mr-4">
+                <div className="w-8 h-8 rounded-xl bg-red-500/10 text-red-600 flex items-center justify-center text-[10px] font-black shrink-0">
+                    #{index + 1}
+                </div>
+                <span className="text-sm font-bold truncate">{category.name}</span>
+            </div>
+            <div className="text-right shrink-0 max-w-[50%]">
+                <AmountDisplay 
+                    amount={category.amount} 
+                    compact={isCompact} 
+                    className="text-sm font-black tabular-nums" 
+                />
+                <p className="text-[10px] font-bold text-muted-foreground uppercase opacity-60">
+                    {((category.amount / totalExpenses) * 100).toFixed(0)}% du total
+                </p>
+            </div>
         </div>
     );
 }

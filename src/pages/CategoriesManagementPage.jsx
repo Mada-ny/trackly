@@ -35,6 +35,7 @@ import {
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
+import { useCurrency } from "@/utils/number/CurrencyProvider";
 
 export default function CategoriesManagementPage() {
     const categories = useCategories();
@@ -244,6 +245,7 @@ export default function CategoriesManagementPage() {
 }
 
 function CategoryItem({ category, onEdit, onDelete }) {
+    const { formatCurrency } = useCurrency();
     return (
         <div className="flex items-center justify-between p-3 rounded-2xl border border-border/50 bg-card/50 backdrop-blur-sm">
             <div className="flex items-center gap-3">
@@ -259,7 +261,7 @@ function CategoryItem({ category, onEdit, onDelete }) {
                     </p>
                     {category.monthlyLimit && (
                         <p className="text-[10px] text-muted-foreground">
-                            Limite: {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'XOF', maximumFractionDigits: 0 }).format(category.monthlyLimit)}/mois
+                            Limite: {formatCurrency(category.monthlyLimit)}/mois
                         </p>
                     )}
                 </div>

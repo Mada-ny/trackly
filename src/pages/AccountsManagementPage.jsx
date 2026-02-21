@@ -34,11 +34,14 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { useCurrency } from "@/utils/number/CurrencyProvider";
+
 export default function AccountsManagementPage() {
     const accounts = useAccounts();
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
     const [selectedAccount, setSelectedAccount] = useState(null);
     const [accountToDelete, setAccountToDelete] = useState(null);
+    const { formatCurrency } = useCurrency();
 
     // État de recherche local
     const [searchQuery, setSearchQuery] = useState("");
@@ -153,7 +156,7 @@ export default function AccountsManagementPage() {
                                         {account.name}
                                     </p>
                                     <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">
-                                        Solde initial: {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'XOF', maximumFractionDigits: 0 }).format(account.initialBalance)}
+                                        Solde initial: {formatCurrency(account.initialBalance)}
                                     </p>
                                 </div>
                             </div>

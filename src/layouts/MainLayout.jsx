@@ -26,15 +26,15 @@ export default function MainLayout() {
             </aside>
 
             {/* Contenu principal avec transitions de page */}
-            <main className={`flex-1 w-full mx-auto max-w-[500px] md:max-w-full ${desktopNavWidth} md:pl-20 pb-20 md:pb-4 overflow-hidden`}>
+            <main className={`flex-1 w-full mx-auto max-w-[500px] md:max-w-full ${desktopNavWidth} md:pl-20 md:pb-4 overflow-hidden`}>
                 <PageTransition>
                     <Outlet />
                 </PageTransition>
             </main>
 
-            {/* Nav mobile */}
-            <footer className="fixed bottom-0 left-0 right-0 z-50 md:hidden">
-                <div className="w-full mx-auto max-w-[500px]">
+            {/* Nav mobile (Floating Pill) */}
+            <footer className="fixed bottom-0 left-0 right-0 z-50 md:hidden pointer-events-none">
+                <div className="w-full mx-auto max-w-[500px] pointer-events-auto">
                     <MobileNav />
                 </div>
             </footer>

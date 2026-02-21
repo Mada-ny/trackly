@@ -7,12 +7,14 @@ import { Input } from "@/components/ui/input";
 import { db } from "@/utils/db/schema";
 import { toast } from "sonner";
 import { useEffect } from "react";
+import { useCurrency } from "@/utils/number/CurrencyProvider";
 
 export default function AccountForm({ 
     account = null, 
     onSuccess 
 }) {
     const isEdit = !!account;
+    const { currency } = useCurrency();
 
     const form = useForm({
         resolver: zodResolver(accountSchema),
@@ -71,7 +73,7 @@ export default function AccountForm({
                     control={form.control}
                     render={({ field, fieldState }) => (
                         <Field data-invalid={fieldState.invalid}>
-                            <FieldLabel>Solde initial (FCFA)</FieldLabel>
+                            <FieldLabel>Solde initial ({currency})</FieldLabel>
                             <Input 
                                 {...field} 
                                 type="number" 

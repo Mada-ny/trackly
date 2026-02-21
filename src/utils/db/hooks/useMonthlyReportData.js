@@ -12,107 +12,105 @@ import { fr } from "date-fns/locale";
 
 /**
  * Hook pour générer un rapport statistique complet sur un mois donné.
- * @param {Date} selectedDate - La date servant à déterminer le mois cible.
  */
 export const useMonthlyReportData = (selectedDate) => {
-    const data = useLiveQuery(async () => {
+    return useLiveQuery(async () => {
         if (!selectedDate) return null;
 
-        const accounts = await db.accounts.toArray();
-        const categories = await db.categories.toArray();
-        const transactions = await db.transactions.toArray();
+        try {
+            const accounts = await db.accounts.toArray();
+            const categories = await db.categories.toArray();
+            const transactions = await db.transactions.toArray();
 
-        if (!accounts || !categories || !transactions) {
-            return null;
-        }
+            if (!accounts || !categories) {
+                return { isEmpty: true };
+            }
 
-        const categoryMap = new Map(categories.map(cat => [cat.id, cat]));
-        
-        // --- Définition de la Période ---
-        const monthStart = startOfMonth(selectedDate);
-        const monthEnd = endOfMonth(selectedDate);
-        const interval = { start: monthStart, end: monthEnd };
+            const categoryMap = new Map(categories.map(cat => [cat.id, cat]));
+            
+            // --- Définition de la Période ---
+            const monthStart = startOfMonth(selectedDate);
+            const monthEnd = endOfMonth(selectedDate);
+            const interval = { start: monthStart, end: monthEnd };
 
-        // --- 1. Agrégation des Métriques ---
-        let totalIncome = 0;
-        let totalExpenses = 0;
-        const categoryBreakdownMap = new Map();
-        const incomeCategoryMap = new Map();
-        const budgetMap = new Map(categories.filter(c => c.monthlyLimit).map(c => [c.id, { ...c, spent: 0 }]));
-        
-        // Données quotidiennes pour le graphique
-        const dailyDataMap = new Map(eachDayOfInterval(interval).map(day => [
-            format(day, 'yyyy-MM-dd'), 
-            { income: 0, expenses: 0 }
-        ]));
+            // --- 1. Agrégation des Métriques ---
+            let totalIncome = 0;
+            let totalExpenses = 0;
+            let nonTransferCount = 0;
+            const uniqueTransferIds = new Set();
+            
+            const categoryBreakdownMap = new Map();
+            const incomeCategoryMap = new Map();
+            const budgetMap = new Map(categories.filter(c => c.monthlyLimit).map(c => [c.id, { ...c, spent: 0 }]));
+            
+            const dailyDataMap = new Map(eachDayOfInterval(interval).map(day => [
+                format(day, 'yyyy-MM-dd'), 
+                { income: 0, expenses: 0 }
+            ]));
 
-        transactions.forEach(t => {
-            if (isWithinInterval(t.date, interval)) {
-                const cat = categoryMap.get(t.categoryId);
-                const isTransfer = cat?.name === "Transfert";
-                const absAmount = Math.abs(t.amount);
-                const dayKey = format(t.date, 'yyyy-MM-dd');
+            transactions.forEach(t => {
+                if (isWithinInterval(t.date, interval)) {
+                    const cat = categoryMap.get(t.categoryId);
+                    const isTransfer = cat?.name === "Transfert" || !!t.transferId;
+                    const absAmount = Math.abs(t.amount);
+                    const dayKey = format(t.date, 'yyyy-MM-dd');
 
-                if (!isTransfer) {
-                    if (cat?.type === 'income') {
-                        totalIncome += absAmount;
-                        incomeCategoryMap.set(cat.name, (incomeCategoryMap.get(cat.name) || 0) + absAmount);
-                        if (dailyDataMap.has(dayKey)) dailyDataMap.get(dayKey).income += absAmount;
-                    } else {
-                        totalExpenses += absAmount;
-                        categoryBreakdownMap.set(cat.name, (categoryBreakdownMap.get(cat.name) || 0) + absAmount);
-                        if (dailyDataMap.has(dayKey)) dailyDataMap.get(dayKey).expenses += absAmount;
-                        
-                        // Suivi budget
-                        if (budgetMap.has(t.categoryId)) {
-                            budgetMap.get(t.categoryId).spent += absAmount;
+                    if (!isTransfer) {
+                        const isIncome = cat ? (cat.type === 'income') : (t.amount > 0);
+                        const categoryName = cat?.name || "Sans catégorie";
+
+                        if (isIncome) {
+                            totalIncome += absAmount;
+                            incomeCategoryMap.set(categoryName, (incomeCategoryMap.get(categoryName) || 0) + absAmount);
+                            if (dailyDataMap.has(dayKey)) dailyDataMap.get(dayKey).income += absAmount;
+                        } else {
+                            totalExpenses += absAmount;
+                            categoryBreakdownMap.set(categoryName, (categoryBreakdownMap.get(categoryName) || 0) + absAmount);
+                            if (dailyDataMap.has(dayKey)) dailyDataMap.get(dayKey).expenses += absAmount;
+                            
+                            if (cat && budgetMap.has(t.categoryId)) {
+                                budgetMap.get(t.categoryId).spent += absAmount;
+                            }
                         }
+                        nonTransferCount++;
+                    } else if (t.transferId) {
+                        uniqueTransferIds.add(t.transferId);
                     }
                 }
+            });
+
+            const netSavings = totalIncome - totalExpenses;
+            let savingsRate = 0;
+            if (totalIncome > 0) {
+                savingsRate = (netSavings / totalIncome) * 100;
+            } else if (totalExpenses > 0) {
+                savingsRate = -100;
             }
-        });
 
-        const netSavings = totalIncome - totalExpenses;
-        const savingsRate = totalIncome > 0 ? (netSavings / totalIncome) * 100 : 0;
+            const sortedExpenses = Array.from(categoryBreakdownMap.entries())
+                .sort((a, b) => b[1] - a[1]);
 
-        // --- 2. Formatage des Top Catégories ---
-        const topExpenseCategories = Array.from(categoryBreakdownMap.entries())
-            .sort((a, b) => b[1] - a[1])
-            .map(([name, amount]) => ({ name, amount }));
+            const sortedIncome = Array.from(incomeCategoryMap.entries())
+                .sort((a, b) => b[1] - a[1]);
 
-        const topIncomeCategories = Array.from(incomeCategoryMap.entries())
-            .sort((a, b) => b[1] - a[1])
-            .map(([name, amount]) => ({ name, amount }));
-
-        // --- 3. Formatage du Graphique Quotidien ---
-        const dailyChart = {
-            labels: Array.from(dailyDataMap.keys()).map(date => format(new Date(date), 'dd')),
-            income: Array.from(dailyDataMap.values()).map(d => d.income),
-            expenses: Array.from(dailyDataMap.values()).map(d => d.expenses),
-        };
-
-        // --- 4. Formatage des Budgets ---
-        const budgets = Array.from(budgetMap.values())
-            .map(b => ({
-                ...b,
-                percentage: Math.min((b.spent / b.monthlyLimit) * 100, 100)
-            }))
-            .sort((a, b) => b.percentage - a.percentage);
-
-        return {
-            summary: {
-                totalIncome,
-                totalExpenses,
-                netSavings,
-                savingsRate
-            },
-            topExpenseCategories,
-            topIncomeCategories,
-            dailyChart,
-            budgets,
-            transactionCount: transactions.filter(t => isWithinInterval(t.date, interval)).length
-        };
+            return {
+                summary: { totalIncome, totalExpenses, netSavings, savingsRate },
+                topExpenseCategories: sortedExpenses.map(([name, amount]) => ({ name, amount })),
+                topIncomeCategories: sortedIncome.map(([name, amount]) => ({ name, amount })),
+                dailyChart: {
+                    labels: Array.from(dailyDataMap.keys()).map(date => format(new Date(date), 'dd')),
+                    income: Array.from(dailyDataMap.values()).map(d => d.income),
+                    expenses: Array.from(dailyDataMap.values()).map(d => d.expenses),
+                },
+                budgets: Array.from(budgetMap.values())
+                    .map(b => ({ ...b, percentage: Math.min((b.spent / b.monthlyLimit) * 100, 100) }))
+                    .sort((a, b) => b.percentage - a.percentage),
+                transactionCount: nonTransferCount + uniqueTransferIds.size,
+                isLoaded: true
+            };
+        } catch (error) {
+            console.error("useMonthlyReportData crash:", error);
+            return { isError: true, error };
+        }
     }, [selectedDate]);
-
-    return data;
 };

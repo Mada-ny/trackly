@@ -4,18 +4,18 @@ import { useMemo, useRef, useState } from "react";
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { TrendingDown, TrendingUp, ChevronRight, Inbox, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { AmountDisplay } from "@/components/ui/amount-display";
 
 // --- Sub-Components ---
 
 function MonthHeaderRow({ month, totals, transactionCount, isCollapsed, onToggle }) {
     return (
         <div 
-            onClick={onToggle}
-            className="sticky top-0 z-20 bg-background/95 backdrop-blur-md px-4 py-4 border-b border-border/50 shadow-sm cursor-pointer active:bg-muted/50 transition-colors"
+            className="sticky top-0 z-20 bg-background/95 backdrop-blur-md px-4 py-4 border-b border-border/50 shadow-sm transition-colors"
         >
             <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 cursor-pointer active:opacity-70" onClick={onToggle}>
                         <h3 className="text-lg font-bold tracking-tight text-foreground capitalize">
                             {month}
                         </h3>
@@ -28,22 +28,25 @@ function MonthHeaderRow({ month, totals, transactionCount, isCollapsed, onToggle
                         {transactionCount} opé.
                     </span>
                 </div>
-                <div className="flex items-center gap-4 text-[11px] font-semibold uppercase tracking-wider">
-                    <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
-                        <TrendingUp className="w-3 h-3" />
-                        <span>+{totals.income.toLocaleString()}</span>
+                <div className="flex items-center gap-4 text-[11px] font-semibold uppercase tracking-wider select-none">
+                    <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 min-w-0 flex-1">
+                        <TrendingUp className="w-3 h-3 shrink-0" />
+                        <span className="shrink-0">+</span>
+                        <AmountDisplay amount={totals.income} compact={true} showMarquee={false} className="text-[11px] font-semibold" />
                     </div>
-                    <div className="flex items-center gap-1.5 text-red-500 dark:text-red-400">
-                        <TrendingDown className="w-3 h-3" />
-                        <span>-{totals.expense.toLocaleString()}</span>
+                    <div className="flex items-center gap-1.5 text-red-500 dark:text-red-400 min-w-0 flex-1">
+                        <TrendingDown className="w-3 h-3 shrink-0" />
+                        <span className="shrink-0">-</span>
+                        <AmountDisplay amount={totals.expense} compact={true} showMarquee={false} className="text-[11px] font-semibold" />
                     </div>
                     <div className={cn(
-                        "ml-auto px-2 py-0.5 rounded-md",
+                        "ml-auto px-2 py-0.5 rounded-md flex items-center min-w-0 max-w-[40%]",
                         totals.balance >= 0 
                             ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400" 
                             : "bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-400"
                     )}>
-                        {totals.balance >= 0 ? '+' : ''}{totals.balance.toLocaleString()} FCFA
+                        <span className="shrink-0">{totals.balance >= 0 ? '+' : ''}</span>
+                        <AmountDisplay amount={totals.balance} compact={true} showMarquee={false} className="text-[11px] font-semibold" />
                     </div>
                 </div>
             </div>
@@ -53,16 +56,17 @@ function MonthHeaderRow({ month, totals, transactionCount, isCollapsed, onToggle
 
 function DayHeaderRow({ date, totals }) {
     return (
-        <div className="flex items-center justify-between py-2 px-4 bg-muted/30 border-b border-border/40">
+        <div className="flex items-center justify-between py-2 px-4 bg-muted/30 border-b border-border/40 select-none">
             <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">
                 {format(date, "EEEE d", { locale: fr })}
             </span>
-            <span className={cn(
-                "text-xs font-bold",
+            <div className={cn(
+                "text-xs font-bold flex items-center min-w-0 max-w-[60%]",
                 totals.balance >= 0 ? "text-emerald-600" : "text-red-500"
             )}>
-                {totals.balance >= 0 ? '+' : ''}{totals.balance.toLocaleString()}
-            </span>
+                <span className="shrink-0">{totals.balance >= 0 ? '+' : ''}</span>
+                <AmountDisplay amount={totals.balance} compact={true} showMarquee={false} className="text-xs font-bold" />
+            </div>
         </div>
     );
 }
@@ -95,14 +99,15 @@ function TransactionRow({ transaction, onClick }) {
                 </div>
             </div>
             
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 shrink-0 max-w-[40%]">
                 <div className={cn(
-                    "text-sm font-bold tabular-nums",
+                    "text-sm font-bold tabular-nums flex items-center justify-end",
                     transaction.isIncome ? "text-emerald-600 dark:text-emerald-400" : "text-foreground"
                 )}>
-                    {transaction.isIncome ? "+" : "-"}{Math.abs(transaction.amount).toLocaleString()}
+                    <span className="shrink-0">{transaction.isIncome ? "+" : "-"}</span>
+                    <AmountDisplay amount={Math.abs(transaction.amount)} compact={true} showMarquee={false} className="text-sm font-bold" />
                 </div>
-                <ChevronRight className="w-4 h-4 text-muted-foreground/30" />
+                <ChevronRight className="w-4 h-4 text-muted-foreground/30 shrink-0" />
             </div>
         </div>
     );

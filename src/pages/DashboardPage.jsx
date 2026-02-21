@@ -1,4 +1,3 @@
-import { FAB } from "@/components/ui/FAB";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { 
     WalletCards, 
@@ -36,8 +35,11 @@ import {
 import { Bar, Doughnut } from 'react-chartjs-2';
 import { cn } from "@/lib/utils";
 import { Link, useNavigate } from "react-router-dom";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import { useCurrency } from "@/utils/number/CurrencyProvider";
+import { AmountDisplay } from "@/components/ui/amount-display";
+import { FAB } from "@/components/ui/FAB";
 
 ChartJS.register(
     CategoryScale,
@@ -56,49 +58,47 @@ ChartJS.register(
 
 export default function DashboardPage() {
     const data = useDashboardData();
-    const [activeIndex, setActiveIndex] = useState(0); // 0 = Total, 1+ = Comptes (Local)
+    const [activeIndex, setActiveIndex] = useState(0); 
     const carouselRef = useRef(null);
     const navigate = useNavigate();
+    const { formatCurrency } = useCurrency();
+    const [showLoading, setShowLoading] = useState(false);
 
-    // État de chargement avec Skeletons Screens
-    if (!data) return (
-        <div className="flex flex-col h-screen bg-background">
-            <div className="glass-header px-4 pt-6 pb-4 space-y-2 shrink-0 border-b border-border/50">
-                <div className="h-8 w-48 bg-muted animate-pulse rounded-lg" />
-                <div className="h-3 w-32 bg-muted animate-pulse rounded-md" />
-            </div>
-            <div className="p-4 space-y-6 overflow-hidden">
-                <div className="flex gap-4 -mx-4 px-4 overflow-hidden">
-                    <div className="h-40 w-full bg-muted animate-pulse rounded-3xl shrink-0" />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                    <div className="h-24 bg-muted animate-pulse rounded-3xl" />
-                    <div className="h-24 bg-muted animate-pulse rounded-3xl" />
-                </div>
-                <div className="h-64 bg-muted animate-pulse rounded-3xl w-full" />
-            </div>
+    // Éviter le flicker pour les chargements rapides
+    useEffect(() => {
+        if (!data) {
+            const timer = setTimeout(() => setShowLoading(true), 200);
+            return () => clearTimeout(timer);
+        }
+    }, [data]);
+
+    // Gestion des erreurs
+    if (data?.isError) return (
+        <div className="flex h-screen items-center justify-center p-8 text-center flex-col gap-4">
+            <div className="text-destructive font-bold">Erreur lors de la lecture de la base de données</div>
+            <Button onClick={() => window.location.reload()}>Réessayer</Button>
         </div>
     );
+
+    // État de chargement discret
+    if (!data || !data.isLoaded) {
+        if (!showLoading) return <div className="h-screen bg-background" />;
+        return (
+            <div className="flex h-screen items-center justify-center bg-background">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+            </div>
+        );
+    }
 
     const { 
         totalBalance, globalMetrics, todayStats, weekStats, budgets,
         accountMetrics, recentTransactions, dailyChart, categoryChart 
     } = data;
 
-    // Déterminer les métriques actuelles selon la sélection
     const currentMetrics = activeIndex === 0 
         ? globalMetrics 
         : accountMetrics[activeIndex - 1];
 
-    const formatCurrency = (amount) => {
-        return new Intl.NumberFormat('fr-FR', {
-            style: 'currency',
-            currency: 'XOF',
-            maximumFractionDigits: 0,
-        }).format(amount);
-    };
-
-    // Écouter le défilement du carrousel pour l'indicateur de pagination
     const handleScroll = () => {
         const container = carouselRef.current;
         if (!container) return;
@@ -113,7 +113,6 @@ export default function DashboardPage() {
         }
     };
 
-    // Configuration du graphique mixte (Activite + Tendance)
     const mixedChartData = {
         labels: dailyChart.labels,
         datasets: [
@@ -211,98 +210,10 @@ export default function DashboardPage() {
                             onScroll={handleScroll}
                             className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory no-scrollbar px-4 -mx-4"
                         >
-                            {/* Carte solde total */}
-                            <Card className="shrink-0 w-[calc(100vw-4rem)] max-w-104 snap-center bg-primary text-primary-foreground border-none shadow-xl shadow-primary/20 relative overflow-hidden py-0">
-                                <CardContent className="p-5 h-full flex flex-col justify-between">
-                                    <div className="flex justify-between items-start">
-                                        <div className="space-y-4">
-                                            <p className="text-[10px] font-black opacity-70 uppercase tracking-widest">SOLDE TOTAL</p>
-                                            <p className="text-3xl font-black tracking-tighter">{formatCurrency(totalBalance)}</p>
-                                        </div>
-                                        <div className="p-2.5 bg-white/20 rounded-2xl backdrop-blur-md">
-                                            <Layers className="w-5 h-5 text-white" />
-                                        </div>
-                                    </div>
-                                    
-                                    <div className="mt-6 flex items-center justify-between">
-                                        <p className="text-[10px] font-bold opacity-60 uppercase tracking-tight">
-                                            Tous vos comptes cumulés
-                                        </p>
-                                        <Button 
-                                            variant="ghost" 
-                                            size="icon-sm" 
-                                            className="bg-white/20 hover:bg-white/30 text-white border-none rounded-xl h-9 w-9"
-                                            onClick={() => navigate("/transactions")}
-                                        >
-                                            <History className="w-4 h-4" />
-                                        </Button>
-                                    </div>
-                                </CardContent>
-                                <div className="absolute -bottom-6 -right-6 w-24 h-24 bg-white/10 rounded-full blur-2xl" />
-                                <div className="absolute -top-6 -left-6 w-32 h-32 bg-white/5 rounded-full blur-3xl" />
-                            </Card>
+                            <TotalBalanceCard balance={totalBalance} />
 
-                            {/* Cartes de comptes individuels */}
                             {accountMetrics?.map(acc => (
-                                <Card key={acc.id} className="shrink-0 w-[calc(100vw-4rem)] max-w-104 snap-center bg-white/60 dark:bg-white/3 backdrop-blur-md border-border/50 relative overflow-hidden py-0 shadow-sm transition-all duration-300">
-                                    <CardContent className="p-5 h-full flex flex-col justify-between">
-                                        <div className="flex justify-between items-start">
-                                            <div className="space-y-4">
-                                                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{acc.name}</p>
-                                                <p className="text-3xl font-black tracking-tighter">{formatCurrency(acc.balance)}</p>
-                                            </div>
-                                            <div className="p-2.5 bg-primary/10 rounded-2xl">
-                                                <WalletCards className="w-5 h-5 text-primary" />
-                                            </div>
-                                        </div>
-                                        
-                                        <div className="mt-6 flex items-center justify-between">
-                                            <p className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-tight">
-                                                Compte individuel
-                                            </p>
-                                            <div className="flex gap-2">
-                                                <Button 
-                                                    variant="secondary" 
-                                                    size="icon-sm" 
-                                                    className="rounded-xl shadow-sm border border-border/50 h-9 w-9 bg-background/50"
-                                                    onClick={() => navigate("/transactions", {
-                                                        state: {
-                                                            initialFilters: { accountIds: [acc.id] }
-                                                        }
-                                                    })}
-                                                >
-                                                    <History className="w-4 h-4 text-muted-foreground" />
-                                                </Button>
-                                                <Button 
-                                                    variant="secondary" 
-                                                    size="icon-sm" 
-                                                    className="rounded-xl shadow-sm border border-border/50 h-9 w-9 bg-background/50"
-                                                    onClick={() => navigate("/transactions/transfer", { 
-                                                        state: { 
-                                                            from: "/",
-                                                            defaultValues: { fromAccountId: acc.id }
-                                                        } 
-                                                    })}
-                                                >
-                                                    <ArrowRightLeft className="w-4 h-4 text-muted-foreground" />
-                                                </Button>
-                                                <Button 
-                                                    variant="secondary" 
-                                                    size="icon-sm" 
-                                                    className="rounded-xl shadow-sm border h-9 w-9 bg-primary/10 hover:bg-primary/20 border-primary/10"
-                                                    onClick={() => navigate("/transactions/new", { 
-                                                        state: { 
-                                                            from: "/",
-                                                            defaultValues: { accountId: acc.id }
-                                                        } 
-                                                    })}
-                                                >
-                                                    <Plus className="w-4 h-4 text-primary" />
-                                                </Button>
-                                            </div>
-                                        </div>
-                                    </CardContent>
-                                </Card>
+                                <AccountBalanceCard key={acc.id} account={acc} />
                             ))}
                         </div>
                     </section>
@@ -334,26 +245,8 @@ export default function DashboardPage() {
                     {/* Statistiques rapides (Aujourd'hui & Semaine) */}
                     {activeIndex === 0 && (
                         <div className="grid grid-cols-2 gap-4">
-                            <Card className="bg-primary/5 dark:bg-primary/3 border-primary/10 p-4 flex flex-col gap-2 shadow-sm rounded-2xl backdrop-blur-sm">
-                                <div className="flex items-center gap-2 text-primary/70">
-                                    <Calendar className="w-3.5 h-3.5" />
-                                    <span className="text-[10px] font-black uppercase tracking-widest">Aujourd'hui</span>
-                                </div>
-                                <div className="flex flex-col">
-                                    <span className="text-sm font-black text-red-600">-{formatCurrency(todayStats.expenses)}</span>
-                                    <span className="text-xs font-bold text-emerald-700 opacity-80">+{formatCurrency(todayStats.income)}</span>
-                                </div>
-                            </Card>
-                            <Card className="bg-primary/5 dark:bg-primary/3 border-primary/10 p-4 flex flex-col gap-2 shadow-sm rounded-2xl backdrop-blur-sm">
-                                <div className="flex items-center gap-2 text-primary/70">
-                                    <Calendar className="w-3.5 h-3.5" />
-                                    <span className="text-[10px] font-black uppercase tracking-widest">Cette semaine</span>
-                                </div>
-                                <div className="flex flex-col">
-                                    <span className="text-sm font-black text-red-600">-{formatCurrency(weekStats.expenses)}</span>
-                                    <span className="text-xs font-bold text-emerald-700 opacity-80">+{formatCurrency(weekStats.income)}</span>
-                                </div>
-                            </Card>
+                            <QuickStatsCard title="Aujourd'hui" expenses={todayStats.expenses} income={todayStats.income} />
+                            <QuickStatsCard title="Cette semaine" expenses={weekStats.expenses} income={weekStats.income} />
                         </div>
                     )}
 
@@ -497,12 +390,13 @@ export default function DashboardPage() {
                                                     <span className="text-[10px] text-muted-foreground truncate uppercase tracking-widest font-medium opacity-60 leading-relaxed">{t.account?.name}</span>
                                                 </div>
                                             </div>
-                                            <span className={cn(
-                                                "text-sm font-black tabular-nums tracking-tighter shrink-0 ml-2",
+                                            <div className={cn(
+                                                "text-sm font-black tabular-nums tracking-tighter shrink-0 ml-2 flex items-center",
                                                 t.isIncome ? "text-emerald-600" : "text-foreground"
                                             )}>
-                                                {t.isIncome ? "+" : "-"}{formatCurrency(Math.abs(t.amount))}
-                                            </span>
+                                                <span>{t.isIncome ? "+" : "-"}</span>
+                                                <AmountDisplay amount={Math.abs(t.amount)} compact={true} showMarquee={false} />
+                                            </div>
                                         </div>
                                     ))}
                                 </div>
@@ -577,15 +471,149 @@ export default function DashboardPage() {
     );
 }
 
+function TotalBalanceCard({ balance }) {
+    const [isCompact, setIsCompact] = useState(true);
+    const navigate = useNavigate();
+    
+    return (
+        <Card 
+            className="shrink-0 w-[calc(100vw-4rem)] max-w-104 snap-center bg-primary text-primary-foreground border-none shadow-xl shadow-primary/20 relative overflow-hidden py-0 cursor-pointer select-none"
+            onClick={() => setIsCompact(!isCompact)}
+        >
+            <CardContent className="p-5 h-full flex flex-col justify-between">
+                <div className="flex justify-between items-start">
+                    <div className="space-y-4 min-w-0 flex-1">
+                        <p className="text-[10px] font-black opacity-70 uppercase tracking-widest">SOLDE TOTAL</p>
+                        <AmountDisplay 
+                            amount={balance} 
+                            compact={isCompact} 
+                            className="text-3xl font-black tracking-tighter"
+                        />
+                    </div>
+                    <div className="p-2.5 bg-white/20 rounded-2xl backdrop-blur-md shrink-0">
+                        <Layers className="w-5 h-5 text-white" />
+                    </div>
+                </div>
+                
+                <div className="mt-6 flex items-center justify-between">
+                    <p className="text-[10px] font-bold opacity-60 uppercase tracking-tight">
+                        Tous vos comptes cumulés
+                    </p>
+                    <Button 
+                        variant="ghost" 
+                        size="icon-sm" 
+                        className="bg-white/20 hover:bg-white/30 text-white border-none rounded-xl h-9 w-9"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            navigate("/transactions");
+                        }}
+                    >
+                        <History className="w-4 h-4" />
+                    </Button>
+                </div>
+            </CardContent>
+            <div className="absolute -bottom-6 -right-6 w-24 h-24 bg-white/10 rounded-full blur-2xl" />
+            <div className="absolute -top-6 -left-6 w-32 h-32 bg-white/5 rounded-full blur-3xl" />
+        </Card>
+    );
+}
+
+function AccountBalanceCard({ account }) {
+    const [isCompact, setIsCompact] = useState(true);
+    const navigate = useNavigate();
+    
+    return (
+        <Card 
+            className="shrink-0 w-[calc(100vw-4rem)] max-w-104 snap-center bg-white/60 dark:bg-white/3 backdrop-blur-md border-border/50 relative overflow-hidden py-0 shadow-sm transition-all duration-300 cursor-pointer select-none"
+            onClick={() => setIsCompact(!isCompact)}
+        >
+            <CardContent className="p-5 h-full flex flex-col justify-between">
+                <div className="flex justify-between items-start">
+                    <div className="space-y-4 min-w-0 flex-1">
+                        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest truncate">{account.name}</p>
+                        <AmountDisplay 
+                            amount={account.balance} 
+                            compact={isCompact} 
+                            className="text-3xl font-black tracking-tighter"
+                        />
+                    </div>
+                    <div className="p-2.5 bg-primary/10 rounded-2xl shrink-0">
+                        <WalletCards className="w-5 h-5 text-primary" />
+                    </div>
+                </div>
+                
+                <div className="mt-6 flex items-center justify-between">
+                    <p className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-tight">
+                        Compte individuel
+                    </p>
+                    <div className="flex gap-2">
+                        <Button 
+                            variant="secondary" 
+                            size="icon-sm" 
+                            className="rounded-xl shadow-sm border border-border/50 h-9 w-9 bg-background/50"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                navigate("/transactions", {
+                                    state: {
+                                        initialFilters: { accountIds: [account.id] }
+                                    }
+                                });
+                            }}
+                        >
+                            <History className="w-4 h-4 text-muted-foreground" />
+                        </Button>
+                        <Button 
+                            variant="secondary" 
+                            size="icon-sm" 
+                            className="rounded-xl shadow-sm border border-border/50 h-9 w-9 bg-background/50"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                navigate("/transactions/transfer", { 
+                                    state: { 
+                                        from: "/",
+                                        defaultValues: { fromAccountId: account.id }
+                                    } 
+                                });
+                            }}
+                        >
+                            <ArrowRightLeft className="w-4 h-4 text-muted-foreground" />
+                        </Button>
+                        <Button 
+                            variant="secondary" 
+                            size="icon-sm" 
+                            className="rounded-xl shadow-sm border h-9 w-9 bg-primary/10 hover:bg-primary/20 border-primary/10"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                navigate("/transactions/new", { 
+                                    state: { 
+                                        from: "/",
+                                        defaultValues: { accountId: account.id }
+                                    } 
+                                });
+                            }}
+                        >
+                            <Plus className="w-4 h-4 text-primary" />
+                        </Button>
+                    </div>
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
+
 function MetricCard({ title, amount, variance, icon, color, inverse = false, className }) {
+    const [isCompact, setIsCompact] = useState(true);
     const isPositive = variance >= 0;
     const isGood = inverse ? !isPositive : isPositive;
 
     return (
-        <Card className={cn(
-            "bg-card/50 backdrop-blur-md border-border/50 animate-in fade-in slide-in-from-bottom-2 duration-500 shadow-sm rounded-3xl transition-all",
-            className
-        )}>
+        <Card 
+            className={cn(
+                "bg-card/50 backdrop-blur-md border-border/50 animate-in fade-in slide-in-from-bottom-2 duration-500 shadow-sm rounded-3xl transition-all cursor-pointer select-none",
+                className
+            )}
+            onClick={() => setIsCompact(!isCompact)}
+        >
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
                 <CardTitle className="text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground/70">
                     {title}
@@ -598,13 +626,11 @@ function MetricCard({ title, amount, variance, icon, color, inverse = false, cla
                 </div>
             </CardHeader>
             <CardContent>
-                <div className="text-3xl font-black tabular-nums tracking-tighter">
-                    {new Intl.NumberFormat('fr-FR', {
-                        style: 'currency',
-                        currency: 'XOF',
-                        maximumFractionDigits: 0,
-                    }).format(amount)}
-                </div>
+                <AmountDisplay 
+                    amount={amount} 
+                    compact={isCompact} 
+                    className="text-3xl font-black tabular-nums tracking-tighter" 
+                />
                 <div className="flex items-center gap-1.5 mt-2">
                     <div className={cn(
                         "flex items-center text-[10px] font-black px-2 py-0.5 rounded-lg shadow-sm border",
@@ -618,6 +644,26 @@ function MetricCard({ title, amount, variance, icon, color, inverse = false, cla
                     <span className="text-[10px] text-muted-foreground/60 font-bold uppercase tracking-widest">vs mois dernier</span>
                 </div>
             </CardContent>
+        </Card>
+    );
+}
+
+function QuickStatsCard({ title, expenses, income }) {
+    const [isCompact, setIsCompact] = useState(true);
+    
+    return (
+        <Card 
+            className="bg-primary/5 dark:bg-primary/3 border-primary/10 p-4 flex flex-col gap-2 shadow-sm rounded-2xl backdrop-blur-sm cursor-pointer select-none"
+            onClick={() => setIsCompact(!isCompact)}
+        >
+            <div className="flex items-center gap-2 text-primary/70">
+                <Calendar className="w-3.5 h-3.5" />
+                <span className="text-[10px] font-black uppercase tracking-widest">{title}</span>
+            </div>
+            <div className="flex flex-col min-w-0">
+                <AmountDisplay amount={expenses} compact={isCompact} className="text-sm font-black text-red-600" />
+                <AmountDisplay amount={income} compact={isCompact} className="text-xs font-bold text-emerald-700 opacity-80" />
+            </div>
         </Card>
     );
 }
