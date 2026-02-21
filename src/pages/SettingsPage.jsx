@@ -82,7 +82,7 @@ export default function SettingsPage() {
                 {
                     label: "À propos",
                     icon: Info,
-                    description: "Version 1.1.0 - Trackly",
+                    description: "Version 1.1.1 - Trackly",
                     onClick: () => setIsAboutOpen(true),
                     color: "text-slate-500",
                     bg: "bg-slate-500/10"
@@ -241,7 +241,7 @@ export default function SettingsPage() {
                                 <img src="/logo.svg" alt="Trackly Logo" className="w-12 h-12" />
                             </div>
                             <DrawerTitle className="text-2xl font-black tracking-[0.2em] uppercase">Trackly</DrawerTitle>
-                            <DrawerDescription className="text-xs font-bold uppercase tracking-widest text-primary/60">Version 1.1.0</DrawerDescription>
+                            <DrawerDescription className="text-xs font-bold uppercase tracking-widest text-primary/60">Version 1.1.1</DrawerDescription>
                         </DrawerHeader>
                         
                         <div className="p-6 space-y-6">
