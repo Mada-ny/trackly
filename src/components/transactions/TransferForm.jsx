@@ -12,6 +12,7 @@ import { buildDateTime } from "@/utils/date/buildDateTime";
 import { db } from "@/utils/db/schema";
 import { z } from "zod";
 import { format } from "date-fns";
+import { getAccountBalance } from "@/utils/db/calculations";
 
 const transferFormSchema = z.object({
     amount: z.coerce.number({
@@ -98,6 +99,25 @@ export default function TransferForm({
             const transferDate = buildDateTime(data.date, data.time);
             const fromAccount = accounts.find(a => String(a.id) === data.fromAccountId);
             const toAccount = accounts.find(a => String(a.id) === data.toAccountId);
+
+            // --- Vérification du solde du compte source ---
+            const currentBalanceFrom = await getAccountBalance(Number(data.fromAccountId));
+            let oldTransferAmount = 0;
+
+            if (mode === "edit") {
+                const oldT = await db.transactions
+                    .where("transferId").equals(transferId)
+                    .and(t => t.accountId === Number(data.fromAccountId))
+                    .first();
+                if (oldT) oldTransferAmount = oldT.amount; // Sera négatif
+            }
+
+            const balanceAfterChange = currentBalanceFrom - oldTransferAmount - data.amount;
+
+            if (balanceAfterChange < 0) {
+                toast.error(`Solde insuffisant sur le compte source (${currentBalanceFrom.toLocaleString()} disponible).`);
+                return;
+            }
 
             const tid = mode === "edit" ? transferId : crypto.randomUUID();
 
@@ -228,20 +248,22 @@ export default function TransferForm({
                         <Controller
                             name="date"
                             control={form.control}
-                            render={({ field }) => (
-                                <Field>
+                            render={({ field, fieldState }) => (
+                                <Field data-invalid={fieldState.invalid}>
                                     <FieldLabel>Date</FieldLabel>
                                     <DatePicker value={field.value} onChange={field.onChange} />
+                                    {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
                                 </Field>
                             )}
                         />
                         <Controller
                             name="time"
                             control={form.control}
-                            render={({ field }) => (
-                                <Field>
+                            render={({ field, fieldState }) => (
+                                <Field data-invalid={fieldState.invalid}>
                                     <FieldLabel>Heure</FieldLabel>
                                     <Input {...field} type="time" />
+                                    {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
                                 </Field>
                             )}
                         />

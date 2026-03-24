@@ -183,12 +183,23 @@
     @apply border-border outline-ring/50 transition-colors duration-300;
     }
   body {
-    @apply bg-background text-foreground antialiased selection:bg-primary/20 selection:text-primary;
+    @apply bg-background text-foreground antialiased selection:bg-primary/20 selection:text-primary min-h-dvh;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    -webkit-tap-highlight-color: transparent;
     }
   h1, h2, h3, h4, h5, h6 {
     @apply tracking-tight;
     }
+  
+  /* Fix for iOS date/time inputs alignment and overflow */
+  input[type="date"],
+  input[type="time"] {
+    @apply min-h-10 min-w-0 w-full;
+    display: flex;
+    align-items: center;
+    -webkit-appearance: none;
+    appearance: none;
+  }
 }
 
 /* Custom Scrollbar hide but keep functionality */

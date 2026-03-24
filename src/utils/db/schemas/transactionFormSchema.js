@@ -6,8 +6,8 @@ export const transactionFormSchema = z.object({
     amount: z.coerce.number({
         required_error: "Le montant est requis",
         invalid_type_error: "Le montant doit être un nombre",
-    }).min(1, "Le montant doit être supérieur à 0."),
-    description: z.string().trim().min(5, "Veuillez préciser la dépense (au moins 5 caractères)."),
+    }).positive("Le montant doit être supérieur à 0."),
+    description: z.string().trim().min(2, "Veuillez préciser la dépense (au moins 2 caractères)."),
     date: z.date({
         required_error: "La date est requise",
         invalid_type_error: "Format de date invalide",
@@ -17,7 +17,9 @@ export const transactionFormSchema = z.object({
     categoryId: z.string().min(1, "Veuillez sélectionner une catégorie."),
 }).superRefine((data, ctx) => {
     const dateTime = buildDateTime(data.date, data.time);
-    if (isFuture(dateTime)) {
+    const now = new Date();
+    // Tolérance de 1 minute (60000ms) pour éviter les blocages dus aux secondes
+    if (dateTime.getTime() > now.getTime() + 60000) {
         ctx.addIssue({ 
             code: "custom", 
             path: ["time"],

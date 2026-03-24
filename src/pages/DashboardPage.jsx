@@ -185,7 +185,7 @@ export default function DashboardPage() {
     const hasCategoryData = categoryChart.datasets.length > 0 && categoryChart.datasets.some(v => v > 0);
 
     return (
-        <div className="flex flex-col h-screen bg-background">
+        <div className="flex flex-col h-dvh bg-background overflow-hidden">
             <div className="shrink-0 glass-header border-b border-border/50 sticky top-0 z-30">
                 <div className="px-4 pt-6 pb-4 space-y-2">
                     <div className="flex items-center justify-between">

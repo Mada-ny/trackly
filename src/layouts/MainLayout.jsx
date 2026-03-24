@@ -4,9 +4,12 @@ import DesktopNav from "@/components/navigation/DesktopNav";
 import SplashScreen from "@/components/navigation/SplashScreen";
 import PageTransition from "@/components/navigation/PageTransition";
 import { useState } from "react";
+import { useScrollDirection } from "@/utils/navigation/useScrollDirection";
+import { cn } from "@/lib/utils";
 
 export default function MainLayout() {
     const desktopNavWidth = "md:w-20"; 
+    const scrollDirection = useScrollDirection();
     const [showSplash, setShowSplash] = useState(() => {
         return !sessionStorage.getItem("trackly-splash-shown");
     });
@@ -17,7 +20,7 @@ export default function MainLayout() {
     };
 
     return (
-        <div className="min-h-screen flex flex-col md:flex-row bg-background text-foreground">
+        <div className="min-h-[100dvh] flex flex-col md:flex-row bg-background text-foreground overflow-x-hidden">
             {showSplash && <SplashScreen onFinish={handleSplashFinish} />}
 
             {/* Nav desktop */}
@@ -26,14 +29,17 @@ export default function MainLayout() {
             </aside>
 
             {/* Contenu principal avec transitions de page */}
-            <main className={`flex-1 w-full mx-auto max-w-[500px] md:max-w-full ${desktopNavWidth} md:pl-20 md:pb-4 overflow-hidden`}>
+            <main className={`flex-1 w-full mx-auto max-w-[500px] md:max-w-full ${desktopNavWidth} md:pl-20 md:pb-4`}>
                 <PageTransition>
                     <Outlet />
                 </PageTransition>
             </main>
 
             {/* Nav mobile (Floating Pill) */}
-            <footer className="fixed bottom-0 left-0 right-0 z-50 md:hidden pointer-events-none">
+            <footer className={cn(
+                "fixed bottom-0 left-0 right-0 z-50 md:hidden pointer-events-none transition-transform duration-500",
+                scrollDirection === "down" ? "translate-y-full" : "translate-y-0"
+            )}>
                 <div className="w-full mx-auto max-w-[500px] pointer-events-auto">
                     <MobileNav />
                 </div>

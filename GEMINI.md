@@ -3,25 +3,29 @@
 ## 🚀 Vision
 Trackly is a mobile-first PWA designed to provide a fluid, secure, and fully offline budget management experience. The app focuses on rapid entry and clear strategic reporting.
 
-## 🛠 Current State (v1.1)
-The application has been refined for better performance and a more modern user experience.
+## 🛠 Current State (v1.2)
+L'application a été renforcée pour une meilleure fiabilité des données et une ergonomie mobile sans faille.
 
 ### 1. Identity & UX
 - **Branding**: Trackly identity with "Mint & Forest" OKLCH palette.
-- **Floating Navigation**: New floating "pill" style mobile navbar for better ergonomics and modern look.
-- **Amount Display**: Smart `AmountDisplay` component with marquee effect for large numbers and individual toggle between compact and full views.
-- **Transitions**: Native-like page entry animations (slide & fade).
+- **Floating Navigation**: Nouveau comportement "Hide on Scroll" pour la barre de navigation mobile et le bouton d'action principal (FAB).
+- **FAB Dynamique**: Le bouton "+" est désormais un menu compact proposant le choix entre "Transaction" et "Virement", avec une animation de rotation et un code couleur émeraude.
+- **Affichage & Défilement**: Utilisation de `dvh` (Dynamic Viewport Height) pour éliminer les sauts de mise en page sur mobile. Correction du débordement des champs `time` sur iOS Safari.
+- **Amount Display**: Composant `AmountDisplay` intelligent avec effet marquee et bascule de vue compacte/complète.
 
 ### 2. Reports & Intelligence
-- **Monthly Reports**: Calendar-based analysis with robust savings rate calculation.
-- **Improved Logic**: Transfers are now counted as a single operation. Automatic fallback to transaction sign when categories are missing.
-- **Hybrid Charts**: Real-time balance trends combined with income/expense flow visualization.
+- **Monthly Reports**: Analyse calendaire avec calcul précis du taux d'épargne.
+- **Improved Logic**: Les virements sont traités comme une opération unique. Fallback automatique sur le signe de la transaction en l'absence de catégorie.
+- **Hybrid Charts**: Tendances de solde en temps réel couplées à la visualisation des flux.
 
 ### 3. Reliability & Performance
-- **Anti-Flicker**: Introduced a 200ms delay for loading states to prevent UI flickering on fast local loads.
-- **Error Handling**: Comprehensive `try/catch` implementation in data hooks to prevent infinite loading screens.
-- **Access**: PIN security removed to prioritize instant accessibility and eliminate forgotten code issues.
-- **Smart Formatting**: French-specific billion pluralization ("Md" vs "Mds") and non-rounding compact mode.
+- **Validation du Solde**: Blocage systématique des transactions et virements si le solde du compte est insuffisant, avec notification d'erreur explicite.
+- **Formulaires Robustes**: 
+    - Affichage des erreurs de validation sur tous les champs (y compris Date et Heure).
+    - Validation du futur assouplie avec une tolérance d'une minute.
+    - Description minimum ramenée à 2 caractères pour une saisie plus rapide.
+- **Anti-Flicker**: Délai de 200ms sur les états de chargement pour éviter les clignotements sur les accès locaux rapides.
+- **Error Handling**: Implémentation `try/catch` robuste dans les hooks de données pour éviter les écrans de chargement infinis.
 
 ## 📋 Next Steps
 - [ ] **Cloud Backup**: Optional encrypted end-to-end synchronization.
@@ -30,4 +34,6 @@ The application has been refined for better performance and a more modern user e
 - [ ] **Global Search**: Quick access to transactions from anywhere via `Ctrl+K`.
 
 ---
-*Last update: February 21, 2026*
+*Last update: March 24, 2026*
+
+PS: Everytime you make a notable change, update this file.

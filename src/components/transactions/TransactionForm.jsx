@@ -12,6 +12,7 @@ import { buildDateTime } from "@/utils/date/buildDateTime";
 import { db } from "@/utils/db/schema";
 import { format } from "date-fns";
 import { transactionFormSchema } from "@/utils/db/schemas/transactionFormSchema";
+import { getAccountBalance } from "@/utils/db/calculations";
 
 // Valeurs par défaut pour une nouvelle transaction
 const getCreateDefaultValues = (overrides = {}) => ({
@@ -83,6 +84,19 @@ export default function TransactionForm({
         }
 
         const signedAmount = category.type === 'income' ? data.amount : -data.amount;
+
+        // --- Vérification du solde ---
+        if (category.type === 'expense') {
+            const currentBalance = await getAccountBalance(Number(data.accountId));
+            const oldAmount = mode === "edit" ? existingTransaction?.amount : 0;
+            // oldAmount est négatif pour une dépense, donc currentBalance - oldAmount rajoute le montant précédent
+            const balanceAfterChange = currentBalance - oldAmount + signedAmount;
+
+            if (balanceAfterChange < 0) {
+                toast.error(`Solde insuffisant sur ce compte (${currentBalance.toLocaleString()} disponible).`);
+                return;
+            }
+        }
 
         const transactionData = {
             date: buildDateTime(data.date, data.time),
@@ -224,22 +238,23 @@ export default function TransactionForm({
                         <Controller
                             name="date"
                             control={form.control}
-                            render={({ field }) => (
-                                <Field>
+                            render={({ field, fieldState }) => (
+                                <Field data-invalid={fieldState.invalid}>
                                     <FieldLabel htmlFor="transaction-form-date">Date</FieldLabel>
                                     <DatePicker
                                         id="transaction-form-date"
                                         value={field.value}
                                         onChange={field.onChange}
                                     />
+                                    {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
                                 </Field>
                             )}
                         />
                         <Controller
                             name="time"
                             control={form.control}
-                            render={({ field }) => (
-                                <Field>
+                            render={({ field, fieldState }) => (
+                                <Field data-invalid={fieldState.invalid}>
                                     <FieldLabel htmlFor="transaction-form-time">Heure</FieldLabel>
                                     <Input
                                         {...field}
@@ -247,6 +262,7 @@ export default function TransactionForm({
                                         type="time"
                                         className="text-sm"
                                     />
+                                    {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
                                 </Field>
                             )}
                         />

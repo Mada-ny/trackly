@@ -14,11 +14,8 @@ import {
     Shield,
     Smartphone,
     Heart,
-    Github,
-    ExternalLink,
-    Compass
 } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/components/ui/theme-provider";
 import { Button } from "@/components/ui/button";
@@ -33,13 +30,11 @@ import {
     DrawerHeader,
     DrawerTitle,
 } from "@/components/ui/drawer";
-import { startOnboardingTour } from "@/utils/navigation/tour";
 
 export default function SettingsPage() {
     const { theme, setTheme } = useTheme();
     const { currency, setCurrency, supportedCurrencies } = useCurrency();
     const [isAboutOpen, setIsAboutOpen] = useState(false);
-    const navigate = useNavigate();
 
     const sections = [
         {
@@ -82,14 +77,6 @@ export default function SettingsPage() {
             title: "Application",
             icon: Smartphone,
             items: [
-                {
-                    label: "Guide d'utilisation",
-                    icon: Compass,
-                    description: "Relancer le tutoriel interactif",
-                    onClick: () => startOnboardingTour(navigate, true),
-                    color: "text-emerald-500",
-                    bg: "bg-emerald-500/10"
-                },
                 {
                     label: "À propos",
                     icon: Info,

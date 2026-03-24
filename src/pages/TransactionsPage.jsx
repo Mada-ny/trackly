@@ -89,7 +89,7 @@ export default function TransactionsPage() {
     };
 
     return (
-        <div className="flex flex-col h-screen bg-background">
+        <div className="flex flex-col h-dvh bg-background overflow-hidden">
             <div className="shrink-0 glass-header">
                 <div className="px-4 pt-6 pb-4 space-y-4">
                     <div className="space-y-2">
