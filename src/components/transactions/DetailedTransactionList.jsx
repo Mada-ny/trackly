@@ -260,7 +260,7 @@ export default function DetailedTransactionList({
     }
 
     return (
-        <div ref={parentRef} className="h-full overflow-y-auto scrollbar-none">
+        <div ref={parentRef} className="h-full overflow-y-auto scrollbar-none pb-24">
             <div style={{ height: `${rowVirtualizer.getTotalSize()}px`, width: '100%', position: 'relative' }}>
                 {rowVirtualizer.getVirtualItems().map((virtualItem) => {
                     const item = rowData[virtualItem.index];

@@ -9,6 +9,7 @@ import { useTheme } from "next-themes"
 import { Toaster as Sonner } from "sonner";
 
 const Toaster = ({
+  position,
   ...props
 }) => {
   const { theme = "system" } = useTheme()
@@ -17,6 +18,7 @@ const Toaster = ({
     <Sonner
       theme={theme}
       className="toaster group"
+      position={position}
       icons={{
         success: <CircleCheckIcon className="size-4" />,
         info: <InfoIcon className="size-4" />,

@@ -6,12 +6,16 @@ import {
     isWithinInterval, 
     format, 
     eachDayOfInterval,
-    startOfDay
+    addMonths,
+    subMonths,
+    startOfDay,
+    endOfDay
 } from "date-fns";
 import { fr } from "date-fns/locale";
 
 /**
  * Hook pour générer un rapport statistique complet sur un mois donné.
+ * Utilise une logique de cycle financier glissant si des marqueurs isCycleStart sont présents.
  */
 export const useMonthlyReportData = (selectedDate) => {
     return useLiveQuery(async () => {
@@ -20,7 +24,7 @@ export const useMonthlyReportData = (selectedDate) => {
         try {
             const accounts = await db.accounts.toArray();
             const categories = await db.categories.toArray();
-            const transactions = await db.transactions.toArray();
+            const allTransactions = await db.transactions.orderBy('date').toArray();
 
             if (!accounts || !categories) {
                 return { isEmpty: true };
@@ -28,10 +32,45 @@ export const useMonthlyReportData = (selectedDate) => {
 
             const categoryMap = new Map(categories.map(cat => [cat.id, cat]));
             
-            // --- Définition de la Période ---
-            const monthStart = startOfMonth(selectedDate);
-            const monthEnd = endOfMonth(selectedDate);
-            const interval = { start: monthStart, end: monthEnd };
+            // --- Définition de la Période Dynamique ---
+            // On cherche le marqueur de début pour le mois sélectionné
+            // Un marqueur pour "Avril" peut être fin Mars (salaire versé le 28)
+            const markers = allTransactions.filter(t => t.isCycleStart);
+            
+            let intervalStart = startOfMonth(selectedDate);
+            let intervalEnd = endOfMonth(selectedDate);
+
+            if (markers.length > 0) {
+                // Trouver le marqueur le plus proche de la date sélectionnée (dans le même mois ou juste avant)
+                const currentMonthStart = startOfMonth(selectedDate);
+                const nextMonthStart = addMonths(currentMonthStart, 1);
+                
+                // Le marqueur du mois actuel est celui qui définit le cycle du mois sélectionné
+                const currentMarker = markers
+                    .filter(m => m.date < nextMonthStart)
+                    .sort((a, b) => b.date - a.date)[0];
+
+                if (currentMarker) {
+                    intervalStart = startOfDay(currentMarker.date);
+                    
+                    // La fin du cycle est soit le marqueur suivant, soit 1 mois après le marqueur actuel
+                    const nextMarker = markers
+                        .filter(m => m.date > currentMarker.date)
+                        .sort((a, b) => a.date - b.date)[0];
+                    
+                    if (nextMarker) {
+                        // On s'arrête juste avant le début du cycle suivant
+                        intervalEnd = new Date(nextMarker.date.getTime() - 1);
+                    } else {
+                        // Par défaut, un mois après le marqueur
+                        intervalEnd = endOfDay(subMonths(addMonths(intervalStart, 1), 0));
+                        // Si le marqueur est le 25 Mars, le cycle finit le 24 Avril
+                        intervalEnd = new Date(addMonths(intervalStart, 1).getTime() - 1);
+                    }
+                }
+            }
+
+            const interval = { start: intervalStart, end: intervalEnd };
 
             // --- 1. Agrégation des Métriques ---
             let totalIncome = 0;
@@ -48,7 +87,7 @@ export const useMonthlyReportData = (selectedDate) => {
                 { income: 0, expenses: 0 }
             ]));
 
-            transactions.forEach(t => {
+            allTransactions.forEach(t => {
                 if (isWithinInterval(t.date, interval)) {
                     const cat = categoryMap.get(t.categoryId);
                     const isTransfer = cat?.name === "Transfert" || !!t.transferId;
@@ -95,6 +134,7 @@ export const useMonthlyReportData = (selectedDate) => {
 
             return {
                 summary: { totalIncome, totalExpenses, netSavings, savingsRate },
+                period: { start: intervalStart, end: intervalEnd },
                 topExpenseCategories: sortedExpenses.map(([name, amount]) => ({ name, amount })),
                 topIncomeCategories: sortedIncome.map(([name, amount]) => ({ name, amount })),
                 dailyChart: {

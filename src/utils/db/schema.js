@@ -30,6 +30,11 @@ db.version(2).stores({
     });
 });
 
+// Version 3 : Support des cycles financiers personnalisés via marqueurs
+db.version(3).stores({
+    transactions: "++id, date, accountId, categoryId, amount, transferId, isCycleStart, [accountId+date], [date+categoryId]"
+});
+
 // Données initiales lors de la première création de la base
 db.on("populate", function(transaction) {
     // Paramètres par défaut

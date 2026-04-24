@@ -14,7 +14,7 @@ createRoot(document.getElementById('root')).render(
     <ThemeProvider defaultTheme="system" storageKey="trackly-ui-theme">
       <CurrencyProvider>
         <RouterProvider router={router} />
-        <Toaster />
+        <Toaster position="top-center" />
         <ReloadPrompt />
       </CurrencyProvider>
     </ThemeProvider>

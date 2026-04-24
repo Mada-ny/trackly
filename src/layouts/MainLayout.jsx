@@ -20,7 +20,7 @@ export default function MainLayout() {
     };
 
     return (
-        <div className="min-h-[100dvh] flex flex-col md:flex-row bg-background text-foreground overflow-x-hidden">
+        <div className="min-h-dvh flex flex-col md:flex-row bg-background text-foreground overflow-x-hidden">
             {showSplash && <SplashScreen onFinish={handleSplashFinish} />}
 
             {/* Nav desktop */}

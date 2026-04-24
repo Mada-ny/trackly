@@ -15,6 +15,7 @@ export const transactionFormSchema = z.object({
     time: z.string().regex(/^\d{2}:\d{2}$/, "Format d'heure invalide (HH:mm)."),
     accountId: z.string().min(1, "Veuillez sélectionner un compte."),
     categoryId: z.string().min(1, "Veuillez sélectionner une catégorie."),
+    isCycleStart: z.boolean().optional(),
 }).superRefine((data, ctx) => {
     const dateTime = buildDateTime(data.date, data.time);
     const now = new Date();

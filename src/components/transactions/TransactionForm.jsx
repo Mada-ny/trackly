@@ -4,15 +4,18 @@ import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { useMemo } from "react";
 import { Button } from "@/components/ui/button"
+import { Toggle } from "@/components/ui/toggle"
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import DatePicker from "../date/DatePicker";
 import { buildDateTime } from "@/utils/date/buildDateTime";
 import { db } from "@/utils/db/schema";
+import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { transactionFormSchema } from "@/utils/db/schemas/transactionFormSchema";
 import { getAccountBalance } from "@/utils/db/calculations";
+import { CalendarRange } from "lucide-react";
 
 // Valeurs par défaut pour une nouvelle transaction
 const getCreateDefaultValues = (overrides = {}) => ({
@@ -25,6 +28,7 @@ const getCreateDefaultValues = (overrides = {}) => ({
     }).slice(0, 5),
     accountId: overrides.accountId ? String(overrides.accountId) : "",
     categoryId: overrides.categoryId ? String(overrides.categoryId) : "",
+    isCycleStart: false,
 });
 
 export default function TransactionForm({ 
@@ -47,7 +51,6 @@ export default function TransactionForm({
         categories.length === 0;
 
     // Détermination des valeurs du formulaire (soit edition, soit création avec overrides)
-    // L'utilisation de useMemo ici combinée à la prop 'values' de useForm règle le bug des cascading renders.
     const formValues = useMemo(() => {
         if (mode === "edit" && existingTransaction && accounts.length > 0 && categories.length > 0) {
             return {
@@ -57,6 +60,7 @@ export default function TransactionForm({
                 accountId: String(existingTransaction.accountId),
                 date: new Date(existingTransaction.date),
                 time: format(existingTransaction.date, "HH:mm"),
+                isCycleStart: !!existingTransaction.isCycleStart,
             };
         }
         // En mode création, on retourne les valeurs par défaut
@@ -69,9 +73,16 @@ export default function TransactionForm({
     const form = useForm({
         resolver: zodResolver(transactionFormSchema),
         mode: "onChange",
-        values: formValues, // Synchronisation automatique et sécurisée par RHF
+        values: formValues,
         defaultValues: getCreateDefaultValues(defaultValues),
     });
+
+    // eslint-disable-next-line react-hooks/incompatible-library
+    const selectedCategoryId = form.watch("categoryId");
+    const selectedCategory = useMemo(() => 
+        categories.find(c => String(c.id) === selectedCategoryId),
+        [categories, selectedCategoryId]
+    );
 
     const onSubmit = async (data) => {
         const category = categories.find(
@@ -89,7 +100,6 @@ export default function TransactionForm({
         if (category.type === 'expense') {
             const currentBalance = await getAccountBalance(Number(data.accountId));
             const oldAmount = mode === "edit" ? existingTransaction?.amount : 0;
-            // oldAmount est négatif pour une dépense, donc currentBalance - oldAmount rajoute le montant précédent
             const balanceAfterChange = currentBalance - oldAmount + signedAmount;
 
             if (balanceAfterChange < 0) {
@@ -104,6 +114,7 @@ export default function TransactionForm({
             categoryId: Number(data.categoryId),
             amount: signedAmount,
             description: data.description,
+            isCycleStart: !!data.isCycleStart,
         }
 
         try {
@@ -199,6 +210,37 @@ export default function TransactionForm({
                             </Field>
                         )}
                     />
+
+                    {/* Début de cycle financier (uniquement pour revenus) */}
+                    {selectedCategory?.type === 'income' && (
+                        <Controller
+                            name="isCycleStart"
+                            control={form.control}
+                            render={({ field }) => (
+                                <Toggle
+                                    pressed={field.value}
+                                    onPressedChange={field.onChange}
+                                    variant="outline"
+                                    className="w-full h-auto p-4 justify-start gap-4 rounded-2xl transition-all duration-200 border-border/50 data-[state=on]:bg-emerald-500/10 data-[state=on]:text-emerald-600 data-[state=on]:border-emerald-500/20"
+                                >
+                                    <div className={cn(
+                                        "w-10 h-10 rounded-xl flex items-center justify-center transition-colors",
+                                        field.value ? "bg-emerald-500/20" : "bg-muted"
+                                    )}>
+                                        <CalendarRange className="size-5" />
+                                    </div>
+                                    <div className="flex flex-col items-start gap-0.5 text-left">
+                                        <span className="text-sm font-black">
+                                            Début de mois financier
+                                        </span>
+                                        <span className="text-[10px] font-bold uppercase tracking-tight opacity-70">
+                                            Ajuste la période des rapports
+                                        </span>
+                                    </div>
+                                </Toggle>
+                            )}
+                        />
+                    )}
 
                     {/* Compte */}
                     <Controller
