@@ -4,7 +4,6 @@ import { RouterProvider } from "react-router"
 import { router } from './router'
 import './index.css'
 import './utils/db/schema'
-import { Toaster } from "@/components/ui/sonner"
 import { ThemeProvider } from './components/ui/theme-provider'
 import { CurrencyProvider } from './utils/number/CurrencyProvider'
 import ReloadPrompt from './components/navigation/ReloadPrompt'
@@ -14,7 +13,6 @@ createRoot(document.getElementById('root')).render(
     <ThemeProvider defaultTheme="system" storageKey="trackly-ui-theme">
       <CurrencyProvider>
         <RouterProvider router={router} />
-        <Toaster position="top-center" />
         <ReloadPrompt />
       </CurrencyProvider>
     </ThemeProvider>

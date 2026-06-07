@@ -104,7 +104,11 @@ export const useMonthlyReportData = (selectedDate) => {
                             if (dailyDataMap.has(dayKey)) dailyDataMap.get(dayKey).income += absAmount;
                         } else {
                             totalExpenses += absAmount;
-                            categoryBreakdownMap.set(categoryName, (categoryBreakdownMap.get(categoryName) || 0) + absAmount);
+                            const categoryKey = cat?.id ?? categoryName;
+                            const entry = categoryBreakdownMap.get(categoryKey) || { category: cat, name: categoryName, total: 0, count: 0 };
+                            entry.total += absAmount;
+                            entry.count += 1;
+                            categoryBreakdownMap.set(categoryKey, entry);
                             if (dailyDataMap.has(dayKey)) dailyDataMap.get(dayKey).expenses += absAmount;
                             
                             if (cat && budgetMap.has(t.categoryId)) {
@@ -126,8 +130,9 @@ export const useMonthlyReportData = (selectedDate) => {
                 savingsRate = -100;
             }
 
-            const sortedExpenses = Array.from(categoryBreakdownMap.entries())
-                .sort((a, b) => b[1] - a[1]);
+            const sortedExpenses = Array.from(categoryBreakdownMap.values())
+                .sort((a, b) => b.total - a.total);
+            const expenseSum = sortedExpenses.reduce((s, x) => s + x.total, 0);
 
             const sortedIncome = Array.from(incomeCategoryMap.entries())
                 .sort((a, b) => b[1] - a[1]);
@@ -135,7 +140,10 @@ export const useMonthlyReportData = (selectedDate) => {
             return {
                 summary: { totalIncome, totalExpenses, netSavings, savingsRate },
                 period: { start: intervalStart, end: intervalEnd },
-                topExpenseCategories: sortedExpenses.map(([name, amount]) => ({ name, amount })),
+                topExpenseCategories: sortedExpenses.map(x => ({
+                    ...x,
+                    pct: expenseSum ? (x.total / expenseSum) * 100 : 0,
+                })),
                 topIncomeCategories: sortedIncome.map(([name, amount]) => ({ name, amount })),
                 dailyChart: {
                     labels: Array.from(dailyDataMap.keys()).map(date => format(new Date(date), 'dd')),

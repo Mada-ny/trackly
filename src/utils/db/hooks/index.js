@@ -1,7 +1,6 @@
 import { db } from "../schema";
 import { useDexieTable } from "./useDexieTable";
 import { useEntity } from "./useEntity";
-import { useSummaryData } from "./useSummaryData";
 import { useDashboardData } from "./useDashboardData";
 import { useMonthlyReportData } from "./useMonthlyReportData";
 import { useSettings } from "./useSettings";
@@ -17,4 +16,4 @@ export const useCategory = (id) => useEntity(db.categories, id);
 export const useTransaction = (id) => useEntity(db.transactions, id); 
 
 // Hooks de données résumées et paramètres
-export { useSummaryData, useDashboardData, useMonthlyReportData, useSettings };
+export { useDashboardData, useMonthlyReportData, useSettings };

@@ -1,12 +1,12 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "../schema";
-import { 
-    startOfMonth, 
-    endOfMonth, 
-    subMonths, 
-    isWithinInterval, 
-    format, 
-    eachDayOfInterval, 
+import {
+    startOfMonth,
+    endOfMonth,
+    subMonths,
+    isWithinInterval,
+    format,
+    eachDayOfInterval,
     subDays,
     startOfDay,
     endOfDay,
@@ -15,9 +15,6 @@ import {
 } from "date-fns";
 import { fr } from "date-fns/locale";
 
-/**
- * Hook central pour agréger les données du Dashboard.
- */
 export const useDashboardData = () => {
     return useLiveQuery(async () => {
         try {
@@ -25,20 +22,17 @@ export const useDashboardData = () => {
             const categories = await db.categories.toArray();
             const transactions = await db.transactions.toArray();
 
-            // S'il manque des données structurelles, on renvoie un état vide mais pas "loading"
             if (!accounts || !categories) {
                 return { isEmpty: true };
             }
 
             const categoryMap = new Map(categories.map(cat => [cat.id, cat]));
 
-            // --- Définition des Périodes ---
             const now = new Date();
             const curMonthStart = startOfMonth(now);
             const curMonthEnd = endOfMonth(now);
             const prevMonthStart = startOfMonth(subMonths(now, 1));
             const prevMonthEnd = endOfMonth(subMonths(now, 1));
-            
             const todayInterval = { start: startOfDay(now), end: endOfDay(now) };
             const weekInterval = { start: startOfWeek(now, { weekStartsOn: 1 }), end: endOfWeek(now, { weekStartsOn: 1 }) };
 
@@ -47,22 +41,59 @@ export const useDashboardData = () => {
                 return ((n - nMinus1) / nMinus1) * 100;
             };
 
-            // --- 1. Solde Total & Stats Globales ---
+            // Per-account accumulators (keyed by account id)
+            const accountDataMap = new Map(
+                accounts.map(acc => [acc.id, {
+                    balance: acc.initialBalance || 0,
+                    cur: { income: 0, expenses: 0 },
+                    prev: { income: 0, expenses: 0 }
+                }])
+            );
+
             let totalBalance = accounts.reduce((sum, acc) => sum + (acc.initialBalance || 0), 0);
             let globalCur = { income: 0, expenses: 0 };
             let globalPrev = { income: 0, expenses: 0 };
             let todayStats = { income: 0, expenses: 0 };
             let weekStats = { income: 0, expenses: 0 };
 
+            const dailyDataMap = new Map(
+                eachDayOfInterval({
+                    start: startOfDay(subDays(now, 29)),
+                    end: startOfDay(now)
+                }).map(day => [format(day, 'yyyy-MM-dd'), { income: 0, expenses: 0 }])
+            );
+
+            const categoryBreakdownMap = new Map();
+            const budgetMap = new Map(
+                categories.filter(c => c.monthlyLimit).map(c => [c.id, { ...c, spent: 0 }])
+            );
+
+            // Single pass over all transactions
             transactions.forEach(t => {
-                totalBalance += t.amount;
                 const cat = categoryMap.get(t.categoryId);
                 const isTransfer = cat?.name === "Transfert" || !!t.transferId;
                 const absAmount = Math.abs(t.amount);
 
+                totalBalance += t.amount;
+
+                // Per-account balance + monthly income/expenses
+                const accData = accountDataMap.get(t.accountId);
+                if (accData) {
+                    accData.balance += t.amount;
+                    const isIncomeForAcc = isTransfer ? t.amount > 0 : (cat ? cat.type === 'income' : t.amount > 0);
+                    if (isWithinInterval(t.date, { start: curMonthStart, end: curMonthEnd })) {
+                        if (isIncomeForAcc) accData.cur.income += absAmount;
+                        else accData.cur.expenses += absAmount;
+                    } else if (isWithinInterval(t.date, { start: prevMonthStart, end: prevMonthEnd })) {
+                        if (isIncomeForAcc) accData.prev.income += absAmount;
+                        else accData.prev.expenses += absAmount;
+                    }
+                }
+
                 if (!isTransfer) {
-                    const isIncome = cat ? (cat.type === 'income') : (t.amount > 0);
-                    
+                    const isIncome = cat ? cat.type === 'income' : t.amount > 0;
+
+                    // Global monthly stats
                     if (isWithinInterval(t.date, { start: curMonthStart, end: curMonthEnd })) {
                         if (isIncome) globalCur.income += absAmount;
                         else globalCur.expenses += absAmount;
@@ -80,45 +111,44 @@ export const useDashboardData = () => {
                         if (isIncome) weekStats.income += absAmount;
                         else weekStats.expenses += absAmount;
                     }
+
+                    // Daily chart (last 30 days)
+                    const dayKey = format(t.date, 'yyyy-MM-dd');
+                    const dayData = dailyDataMap.get(dayKey);
+                    if (dayData) {
+                        if (isIncome) dayData.income += absAmount;
+                        else dayData.expenses += absAmount;
+                    }
+
+                    // Category breakdown + budget (current month only)
+                    if (isWithinInterval(t.date, { start: curMonthStart, end: curMonthEnd })) {
+                        const isExpense = cat ? cat.type === 'expense' : t.amount < 0;
+                        if (isExpense) {
+                            const categoryName = cat?.name || "Sans catégorie";
+                            categoryBreakdownMap.set(categoryName, (categoryBreakdownMap.get(categoryName) || 0) + absAmount);
+                            if (cat && budgetMap.has(t.categoryId)) {
+                                budgetMap.get(t.categoryId).spent += absAmount;
+                            }
+                        }
+                    }
                 }
             });
 
-            // --- 2. Métriques par Compte ---
             const accountMetrics = accounts.map(acc => {
-                let balance = acc.initialBalance || 0;
-                let cur = { income: 0, expenses: 0 };
-                let prev = { income: 0, expenses: 0 };
-
-                transactions.filter(t => t.accountId === acc.id).forEach(t => {
-                    balance += t.amount;
-                    const cat = categoryMap.get(t.categoryId);
-                    const isTransfer = cat?.name === "Transfert" || !!t.transferId;
-                    const isIncome = isTransfer ? t.amount > 0 : (cat ? cat.type === 'income' : t.amount > 0);
-                    const absAmount = Math.abs(t.amount);
-
-                    if (isWithinInterval(t.date, { start: curMonthStart, end: curMonthEnd })) {
-                        if (isIncome) cur.income += absAmount;
-                        else cur.expenses += absAmount;
-                    } else if (isWithinInterval(t.date, { start: prevMonthStart, end: prevMonthEnd })) {
-                        if (isIncome) prev.income += absAmount;
-                        else prev.expenses += absAmount;
-                    }
-                });
-
+                const d = accountDataMap.get(acc.id);
                 return {
                     id: acc.id,
                     name: acc.name,
-                    balance,
-                    income: cur.income,
-                    expenses: cur.expenses,
+                    balance: d.balance,
+                    income: d.cur.income,
+                    expenses: d.cur.expenses,
                     comparison: {
-                        incomeVar: calculateVariance(cur.income, prev.income),
-                        expenseVar: calculateVariance(cur.expenses, prev.expenses)
+                        incomeVar: calculateVariance(d.cur.income, d.prev.income),
+                        expenseVar: calculateVariance(d.cur.expenses, d.prev.expenses)
                     }
                 };
             });
 
-            // --- 3. Dernières Transactions ---
             const recentTransactions = [...transactions]
                 .sort((a, b) => b.date.getTime() - a.date.getTime())
                 .slice(0, 5)
@@ -134,40 +164,6 @@ export const useDashboardData = () => {
                     };
                 });
 
-            // --- 4. Données Graphiques ---
-            const dailyDataMap = new Map(eachDayOfInterval({
-                start: startOfDay(subDays(now, 29)),
-                end: startOfDay(now)
-            }).map(day => [format(day, 'yyyy-MM-dd'), { income: 0, expenses: 0 }]));
-
-            const categoryBreakdownMap = new Map();
-            const budgetMap = new Map(categories.filter(c => c.monthlyLimit).map(c => [c.id, { ...c, spent: 0 }]));
-
-            transactions.forEach(t => {
-                const dayKey = format(t.date, 'yyyy-MM-dd');
-                const cat = categoryMap.get(t.categoryId);
-                const isTransfer = cat?.name === "Transfert" || !!t.transferId;
-                const absAmount = Math.abs(t.amount);
-
-                if (dailyDataMap.has(dayKey)) {
-                    const dayData = dailyDataMap.get(dayKey);
-                    const isIncome = cat ? (cat.type === 'income') : (t.amount > 0);
-                    if (isIncome && !isTransfer) dayData.income += absAmount;
-                    else if (!isTransfer) dayData.expenses += absAmount;
-                }
-
-                if (isWithinInterval(t.date, { start: curMonthStart, end: curMonthEnd })) {
-                    const isExpense = cat ? (cat.type === 'expense') : (t.amount < 0);
-                    if (isExpense && !isTransfer) {
-                        const categoryName = cat?.name || "Sans catégorie";
-                        categoryBreakdownMap.set(categoryName, (categoryBreakdownMap.get(categoryName) || 0) + absAmount);
-                        if (cat && budgetMap.has(t.categoryId)) {
-                            budgetMap.get(t.categoryId).spent += absAmount;
-                        }
-                    }
-                }
-            });
-
             const dailyChart = {
                 labels: Array.from(dailyDataMap.keys()).map(date => format(new Date(date), 'dd MMM', { locale: fr })),
                 income: Array.from(dailyDataMap.values()).map(d => d.income),
@@ -177,7 +173,6 @@ export const useDashboardData = () => {
 
             const totalNetChange = Array.from(dailyDataMap.values()).reduce((sum, d) => sum + (d.income - d.expenses), 0);
             let runningBalance = totalBalance - totalNetChange;
-
             dailyChart.trend = Array.from(dailyDataMap.values()).map(d => {
                 runningBalance += (d.income - d.expenses);
                 return runningBalance;

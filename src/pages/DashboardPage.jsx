@@ -1,693 +1,481 @@
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { 
-    WalletCards, 
-    TrendingUp, 
-    TrendingDown, 
-    ArrowUpRight, 
-    ArrowDownRight,
-    PieChart as PieIcon,
-    BarChart3,
-    ChevronRight,
-    History,
-    Layers,
-    Plus,
-    ArrowRightLeft,
-    Calendar,
-    Target,
-    Activity,
-    HelpCircle
-} from "lucide-react";
+import { useState, useEffect } from "react";
+import { useNavigate, Link } from "react-router";
+import { Bell, Eye, EyeOff, TrendingUp, TrendingDown, ChevronRight, Plus } from "lucide-react";
+import { format } from "date-fns";
 import { useDashboardData } from "@/utils/db/hooks";
-import { 
-    Chart as ChartJS, 
-    CategoryScale, 
-    LinearScale, 
-    BarElement, 
-    Title, 
-    Tooltip, 
-    Legend, 
-    ArcElement,
-    PointElement,
-    LineElement,
-    LineController,
-    BarController,
-    Filler
-} from 'chart.js';
-import { Bar, Doughnut } from 'react-chartjs-2';
-import { cn } from "@/lib/utils";
-import { Link, useNavigate } from "react-router-dom";
-import { useState, useRef, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { useCurrency } from "@/utils/number/CurrencyProvider";
-import { AmountDisplay } from "@/components/ui/amount-display";
-import { FAB } from "@/components/ui/FAB";
-import { startDashboardTour, startOnboardingTour } from "@/utils/navigation/tour";
+import { GlyphChip } from "@/components/ui/glyph-chip";
+import { getCategoryVisuals, getAccountVisuals } from "@/utils/ui/iconMap";
 
-ChartJS.register(
-    CategoryScale,
-    LinearScale,
-    BarElement,
-    Title,
-    Tooltip,
-    Legend,
-    ArcElement,
-    PointElement,
-    LineElement,
-    LineController,
-    BarController,
-    Filler
-);
+// ── Helpers ──────────────────────────────────────────────────────────────
+
+function formatCFA(n, { sign = false } = {}) {
+    const v = Math.round(Math.abs(n));
+    const body = v.toLocaleString('fr-FR');
+    const prefix = sign ? (n < 0 ? '−' : '+') : (n < 0 ? '−' : '');
+    return `${prefix}${body} F`;
+}
+
+function getGreeting() {
+    const h = new Date().getHours();
+    if (h < 12) return 'Bonjour';
+    if (h < 18) return 'Bon après-midi';
+    return 'Bonsoir';
+}
+
+const ACCOUNT_KIND = {
+    'Espèces': 'Liquide',
+    'Carte Djamo': 'Carte',
+    'Wave': 'Mobile',
+    'Mobile Money': 'Mobile',
+};
+
+// ── Sub-components ────────────────────────────────────────────────────────
+
+function Sparkline({ points }) {
+    if (!points || points.length < 2) return null;
+    const W = 320, H = 44;
+    const max = Math.max(...points), min = Math.min(...points);
+    const span = max - min || 1;
+    const step = W / (points.length - 1);
+    const pts = points
+        .map((p, i) => `${i * step},${H - ((p - min) / span) * (H - 6) - 3}`)
+        .join(' ');
+    const lx = (points.length - 1) * step;
+    const ly = H - ((points[points.length - 1] - min) / span) * (H - 6) - 3;
+    return (
+        <svg width="100%" height={H} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ display: 'block' }}>
+            <polyline points={pts} fill="none" stroke="rgba(255,253,248,0.9)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            <circle cx={lx} cy={ly} r="3" fill="#fff" />
+        </svg>
+    );
+}
+
+function HeroCard({ balance, metrics, hidden, onToggle, dailyTrend }) {
+    const savings = metrics.income > 0
+        ? Math.round(((metrics.income - metrics.expenses) / metrics.income) * 100)
+        : 0;
+
+    return (
+        <div style={{
+            position: 'relative', overflow: 'hidden', borderRadius: 28,
+            background: 'linear-gradient(155deg, #2f4f46 0%, #233b34 58%, #1d322c 100%)',
+            color: '#f4f1e8', padding: '22px 22px 18px',
+            boxShadow: '0 18px 40px rgba(31,52,46,0.32)',
+        }}>
+            <div style={{
+                position: 'absolute', top: -60, right: -40, width: 200, height: 200,
+                borderRadius: '50%', background: 'radial-gradient(circle, rgba(180,200,160,0.18), transparent 70%)',
+                pointerEvents: 'none',
+            }} />
+            <div style={{ position: 'relative' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ font: '500 12.5px var(--sans)', letterSpacing: 0.3, color: 'rgba(244,241,232,0.7)' }}>
+                        Solde total
+                    </span>
+                    <button
+                        onClick={onToggle}
+                        aria-label={hidden ? 'Afficher le solde' : 'Masquer le solde'}
+                        style={{
+                            border: 'none', background: 'rgba(255,255,255,0.12)', color: '#f4f1e8',
+                            width: 30, height: 30, borderRadius: 10,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+                        }}
+                    >
+                        {hidden ? <Eye size={16} strokeWidth={1.8} /> : <EyeOff size={16} strokeWidth={1.8} />}
+                    </button>
+                </div>
+                <div style={{
+                    fontFamily: 'var(--serif)', fontSize: 46, lineHeight: 1.05,
+                    letterSpacing: 0.5, marginTop: 10, fontVariantNumeric: 'tabular-nums',
+                }}>
+                    {hidden ? '••• ••• F' : formatCFA(balance)}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12 }}>
+                    <span style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 3,
+                        background: 'rgba(180,200,160,0.2)', color: '#dfe7cc',
+                        font: '600 12px var(--sans)', padding: '4px 9px', borderRadius: 99,
+                    }}>
+                        <TrendingUp size={13} strokeWidth={2.1} />
+                        {savings}%
+                    </span>
+                    <span style={{ font: '460 12px var(--sans)', color: 'rgba(244,241,232,0.62)' }}>
+                        ce mois‑ci
+                    </span>
+                </div>
+                <div style={{ marginTop: 14, opacity: 0.85 }}>
+                    <Sparkline points={dailyTrend} />
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function AccountStrip({ accounts, onManage }) {
+    return (
+        <div
+            className="no-sb"
+            style={{ display: 'flex', gap: 12, overflowX: 'auto', padding: '2px 20px 4px', margin: '0 -20px' }}
+        >
+            {accounts.map(acc => {
+                const { icon, color } = getAccountVisuals(acc);
+                return (
+                    <div key={acc.id} style={{
+                        flexShrink: 0, width: 156, background: 'var(--surface)',
+                        border: '1px solid var(--line)', borderRadius: 20, padding: '15px 15px 14px',
+                    }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <GlyphChip icon={icon} color={color} size={36} radius={11} soft={0.14} />
+                            <span style={{
+                                font: '500 10.5px var(--sans)', color: 'var(--ink-muted)',
+                                textTransform: 'uppercase', letterSpacing: 0.6,
+                            }}>
+                                {ACCOUNT_KIND[acc.name] || 'Compte'}
+                            </span>
+                        </div>
+                        <div style={{ font: '550 13px var(--sans)', color: 'var(--ink-soft)', marginTop: 13 }}>
+                            {acc.name}
+                        </div>
+                        <div style={{
+                            fontFamily: 'var(--serif)', fontSize: 22, color: 'var(--ink)',
+                            marginTop: 2, fontVariantNumeric: 'tabular-nums',
+                        }}>
+                            {formatCFA(acc.balance)}
+                        </div>
+                    </div>
+                );
+            })}
+            <button
+                onClick={onManage}
+                style={{
+                    flexShrink: 0, width: 92, background: 'none',
+                    border: '1px dashed var(--line)', borderRadius: 20,
+                    display: 'flex', flexDirection: 'column', alignItems: 'center',
+                    justifyContent: 'center', gap: 8, color: 'var(--ink-muted)', cursor: 'pointer',
+                }}
+            >
+                <span style={{
+                    width: 34, height: 34, borderRadius: 11, background: 'rgba(63,111,99,0.10)',
+                    color: 'var(--pine)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                    <Plus size={18} strokeWidth={2} />
+                </span>
+                <span style={{ font: '500 11px var(--sans)' }}>Gérer</span>
+            </button>
+        </div>
+    );
+}
+
+function StatTile({ label, value, income, delta }) {
+    const accent = income ? '#3f6f63' : '#b4623f';
+    const up = delta >= 0;
+    return (
+        <div style={{
+            flex: 1, background: 'var(--surface)', border: '1px solid var(--line)',
+            borderRadius: 22, padding: '16px 16px 15px',
+        }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 12 }}>
+                <span style={{
+                    width: 26, height: 26, borderRadius: 9,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: income ? 'rgba(63,111,99,0.13)' : 'rgba(180,98,63,0.13)',
+                    color: accent,
+                }}>
+                    {income
+                        ? <TrendingUp size={15} strokeWidth={1.9} />
+                        : <TrendingDown size={15} strokeWidth={1.9} />
+                    }
+                </span>
+                <span style={{ font: '500 12.5px var(--sans)', color: 'var(--ink-soft)' }}>{label}</span>
+            </div>
+            <div style={{
+                fontFamily: 'var(--serif)', fontSize: 27, color: 'var(--ink)',
+                letterSpacing: 0.2, lineHeight: 1,
+            }}>
+                {formatCFA(value)}
+            </div>
+            {delta != null && (
+                <div style={{
+                    display: 'flex', alignItems: 'center', gap: 4, marginTop: 9,
+                    font: '550 11.5px var(--sans)',
+                    color: up ? 'var(--pine)' : 'var(--clay)',
+                }}>
+                    {up ? <TrendingUp size={13} strokeWidth={2} /> : <TrendingDown size={13} strokeWidth={2} />}
+                    {Math.abs(delta).toFixed(1)}%
+                    <span style={{ color: 'var(--ink-muted)', fontWeight: 460, marginLeft: 2 }}>
+                        vs {new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1).toLocaleDateString('fr-FR', { month: 'long' })}
+                    </span>
+                </div>
+            )}
+        </div>
+    );
+}
+
+function ProgressBar({ pct }) {
+    const danger = pct > 90, warn = pct > 72;
+    const color = danger ? 'var(--clay)' : warn ? '#c79a52' : 'var(--pine)';
+    return (
+        <div style={{ width: '100%', height: 8, borderRadius: 99, background: 'rgba(60,52,38,0.08)', overflow: 'hidden' }}>
+            <div style={{
+                width: `${Math.min(pct, 100)}%`, height: '100%', borderRadius: 99,
+                background: color, transition: 'width .8s cubic-bezier(.22,1,.36,1)',
+            }} />
+        </div>
+    );
+}
+
+function SectionLabel({ children, to, label }) {
+    return (
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 12 }}>
+            <h3 style={{ font: '500 15px/1 var(--sans)', letterSpacing: 0.1, color: 'var(--ink-soft)', margin: 0 }}>
+                {children}
+            </h3>
+            {to && (
+                <Link to={to} style={{
+                    font: '550 13px var(--sans)', color: 'var(--pine)',
+                    display: 'flex', alignItems: 'center', gap: 2, textDecoration: 'none',
+                }}>
+                    {label}
+                    <ChevronRight size={13} strokeWidth={2} />
+                </Link>
+            )}
+        </div>
+    );
+}
+
+function TxRow({ tx, showBorder, onClick }) {
+    const { icon, color } = tx.isTransfer ? { icon: getAccountVisuals(tx.account).icon, color: '#8a8170' } : getCategoryVisuals(tx.category);
+    const timeStr = tx.date ? format(new Date(tx.date), 'HH:mm') : '';
+    const signed = tx.isIncome ? tx.amount : -Math.abs(tx.amount);
+
+    return (
+        <button
+            onClick={() => onClick && onClick(tx)}
+            style={{
+                width: '100%', border: 'none', background: 'none', cursor: 'pointer',
+                borderTop: showBorder ? '1px solid var(--line)' : 'none',
+                display: 'flex', alignItems: 'center', gap: 13, padding: '11px 4px', textAlign: 'left',
+                borderRadius: 14,
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(63,111,99,0.04)'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'none'; }}
+        >
+                <GlyphChip icon={icon} color={color} size={42} radius={13} soft={0.12} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{
+                        font: '600 15px/1.25 var(--sans)', color: 'var(--ink)',
+                        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                    }}>
+                        {tx.description}
+                    </div>
+                    <div style={{
+                        font: '480 12.5px var(--sans)', color: 'var(--ink-muted)',
+                        marginTop: 3, display: 'flex', alignItems: 'center', gap: 5,
+                    }}>
+                        <span>{tx.account?.name}</span>
+                        <span style={{ opacity: 0.5 }}>·</span>
+                        <span>{timeStr}</span>
+                    </div>
+                </div>
+                <div style={{
+                    fontFamily: 'var(--sans)', fontSize: 15, fontWeight: 680,
+                    color: tx.isTransfer ? 'var(--ink-muted)' : tx.isIncome ? 'var(--pine)' : 'var(--ink)',
+                    fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap',
+                }}>
+                    {formatCFA(signed, { sign: true })}
+                </div>
+        </button>
+    );
+}
+
+// ── Main page ─────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
     const data = useDashboardData();
-    const [activeIndex, setActiveIndex] = useState(0); 
-    const carouselRef = useRef(null);
     const navigate = useNavigate();
-    const { formatCurrency } = useCurrency();
+    const [hidden, setHidden] = useState(false);
     const [showLoading, setShowLoading] = useState(false);
 
-    // Lancer le tour d'onboarding au premier chargement
-    useEffect(() => {
-        if (data?.isLoaded) {
-            const timer = setTimeout(() => {
-                startOnboardingTour();
-            }, 1000);
-            return () => clearTimeout(timer);
-        }
-    }, [data?.isLoaded]);
-
-    // Éviter le flicker pour les chargements rapides
     useEffect(() => {
         if (!data) {
-            const timer = setTimeout(() => setShowLoading(true), 200);
-            return () => clearTimeout(timer);
+            const t = setTimeout(() => setShowLoading(true), 200);
+            return () => clearTimeout(t);
         }
     }, [data]);
 
-    // Gestion des erreurs
     if (data?.isError) return (
-        <div className="flex h-screen items-center justify-center p-8 text-center flex-col gap-4">
-            <div className="text-destructive font-bold">Erreur lors de la lecture de la base de données</div>
-            <Button onClick={() => window.location.reload()}>Réessayer</Button>
+        <div style={{
+            display: 'flex', height: '100dvh', alignItems: 'center', justifyContent: 'center',
+            padding: 32, textAlign: 'center', flexDirection: 'column', gap: 16, background: 'var(--paper)',
+        }}>
+            <div style={{ color: 'var(--clay)', font: '700 15px var(--sans)' }}>
+                Erreur de lecture de la base de données
+            </div>
+            <button
+                onClick={() => window.location.reload()}
+                style={{
+                    padding: '10px 24px', borderRadius: 12, background: 'var(--pine)',
+                    color: '#fff', border: 'none', cursor: 'pointer', font: '600 14px var(--sans)',
+                }}
+            >
+                Réessayer
+            </button>
         </div>
     );
 
-    // État de chargement discret
     if (!data || !data.isLoaded) {
-        if (!showLoading) return <div className="h-screen bg-background" />;
+        if (!showLoading) return <div style={{ height: '100dvh', background: 'var(--paper)' }} />;
         return (
-            <div className="flex h-screen items-center justify-center bg-background">
+            <div style={{ display: 'flex', height: '100dvh', alignItems: 'center', justifyContent: 'center', background: 'var(--paper)' }}>
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
             </div>
         );
     }
 
-    const { 
-        totalBalance, globalMetrics, todayStats, weekStats, budgets,
-        accountMetrics, recentTransactions, dailyChart, categoryChart 
-    } = data;
-
-    const currentMetrics = activeIndex === 0 
-        ? globalMetrics 
-        : accountMetrics[activeIndex - 1];
-
-    const handleScroll = () => {
-        const container = carouselRef.current;
-        if (!container) return;
-        const scrollLeft = container.scrollLeft;
-        const firstChild = container.firstElementChild;
-        if (!firstChild) return;
-        const itemWidth = firstChild.offsetWidth;
-        const gap = 16;
-        const newIndex = Math.round(scrollLeft / (itemWidth + gap));
-        if (newIndex !== activeIndex && newIndex >= 0 && newIndex <= (accountMetrics?.length || 0)) {
-            setActiveIndex(newIndex);
-        }
-    };
-
-    const mixedChartData = {
-        labels: dailyChart.labels,
-        datasets: [
-            {
-                type: 'line',
-                label: 'Solde cumulé',
-                data: dailyChart.trend,
-                borderColor: 'oklch(0.45 0.04 155)',
-                borderWidth: 2,
-                pointRadius: 0,
-                pointHoverRadius: 4,
-                tension: 0.4,
-                fill: true,
-                backgroundColor: (context) => {
-                    const ctx = context.chart.ctx;
-                    const gradient = ctx.createLinearGradient(0, 0, 0, 200);
-                    gradient.addColorStop(0, 'rgba(6, 95, 70, 0.1)');
-                    gradient.addColorStop(1, 'rgba(6, 95, 70, 0)');
-                    return gradient;
-                },
-                yAxisID: 'y1',
-            },
-            {
-                type: 'bar',
-                label: 'Revenus',
-                data: dailyChart.income,
-                backgroundColor: 'rgba(16, 185, 129, 0.5)',
-                borderRadius: 4,
-                maxBarThickness: 8,
-                yAxisID: 'y',
-            },
-            {
-                type: 'bar',
-                label: 'Dépenses',
-                data: dailyChart.expenses,
-                backgroundColor: 'rgba(239, 68, 68, 0.5)',
-                borderRadius: 4,
-                maxBarThickness: 8,
-                yAxisID: 'y',
-            }
-        ]
-    };
-
-    const doughnutData = {
-        labels: categoryChart.labels,
-        datasets: [{
-            data: categoryChart.datasets,
-            backgroundColor: [
-                '#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#6366f1'
-            ],
-            borderWidth: 2,
-            borderColor: 'transparent',
-            hoverOffset: 8
-        }]
-    };
-
-    const hasChartData = dailyChart.income.some(v => v > 0) || dailyChart.expenses.some(v => v > 0);
-    const hasCategoryData = categoryChart.datasets.length > 0 && categoryChart.datasets.some(v => v > 0);
+    const { totalBalance, globalMetrics, accountMetrics, recentTransactions, budgets, dailyChart } = data;
+    const recents = recentTransactions.slice(0, 4);
 
     return (
-        <div className="flex flex-col h-dvh bg-background overflow-hidden">
-            <div className="shrink-0 glass-header border-b border-border/50 sticky top-0 z-30">
-                <div className="px-4 pt-6 pb-4 space-y-2">
-                    <div className="flex items-center justify-between">
-                        <h1 className="text-2xl font-black tracking-tight text-foreground">
-                            Tableau de bord
-                        </h1>
-                        <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="rounded-full text-muted-foreground hover:text-primary transition-colors"
-                            onClick={() => startDashboardTour()}
-                        >
-                            <HelpCircle className="w-5 h-5" />
-                        </Button>
-                    </div>
-                    <p className="text-xs font-medium text-muted-foreground">
-                        Aperçu de vos finances
-                    </p>
-                </div>
-            </div>
+        <div
+            className="no-sb"
+            style={{ overflowY: 'auto', background: 'var(--paper)', minHeight: '100dvh' }}
+        >
+            <div style={{ padding: '0 20px 124px' }}>
 
-            <div className="grow overflow-y-auto no-scrollbar">
-                <div className="p-4 pb-24 space-y-6 max-w-4xl mx-auto">
-                    
-                    {/* Carrousel de comptes */}
-                    <section className="space-y-3">
-                        <div className="flex items-center justify-between px-1">
-                            <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/80">Mes Comptes</h2>
-                            <div className="flex gap-1.5">
-                                {Array.from({ length: (accountMetrics?.length || 0) + 1 }).map((_, i) => (
-                                    <div 
-                                        key={i} 
-                                        className={cn(
-                                            "w-1.5 h-1.5 rounded-full transition-all duration-300",
-                                            activeIndex === i ? "w-4 bg-primary" : "bg-muted-foreground/20"
-                                        )} 
-                                    />
-                                ))}
-                            </div>
+                {/* Greeting */}
+                <div style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: '8px 0 18px',
+                    paddingTop: 'max(8px, calc(env(safe-area-inset-top) + 8px))',
+                }}>
+                    <div>
+                        <div style={{ font: '480 13px var(--sans)', color: 'var(--ink-muted)' }}>
+                            {getGreeting()},
                         </div>
-                        
-                        <div 
-                            id="tour-balance-carousel"
-                            ref={carouselRef}
-                            onScroll={handleScroll}
-                            className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory no-scrollbar px-4 -mx-4"
-                        >
-                            <TotalBalanceCard balance={totalBalance} />
+                        <div style={{
+                            fontFamily: 'var(--serif)', fontSize: 27, color: 'var(--ink)',
+                            lineHeight: 1.05,
+                        }}>
+                            Mes finances
+                        </div>
+                    </div>
+                    <button
+                        aria-label="Notifications"
+                        style={{
+                            position: 'relative', width: 44, height: 44, borderRadius: 14,
+                            border: '1px solid var(--line)', background: 'var(--surface)',
+                            color: 'var(--ink-soft)', display: 'flex', alignItems: 'center',
+                            justifyContent: 'center', cursor: 'pointer',
+                        }}
+                    >
+                        <Bell size={20} strokeWidth={1.7} />
+                        <span style={{
+                            position: 'absolute', top: 11, right: 12,
+                            width: 7, height: 7, borderRadius: 99,
+                            background: 'var(--clay)', border: '1.5px solid var(--surface)',
+                        }} />
+                    </button>
+                </div>
 
-                            {accountMetrics?.map(acc => (
-                                <AccountBalanceCard key={acc.id} account={acc} />
+                {/* Hero balance */}
+                <HeroCard
+                    balance={totalBalance}
+                    metrics={globalMetrics}
+                    hidden={hidden}
+                    onToggle={() => setHidden(h => !h)}
+                    dailyTrend={dailyChart.trend}
+                />
+
+                {/* Account strip */}
+                <div style={{ marginTop: 24 }}>
+                    <SectionLabel>Mes comptes</SectionLabel>
+                    <AccountStrip accounts={accountMetrics} onManage={() => navigate('/settings')} />
+                </div>
+
+                {/* This month stats */}
+                <div style={{ marginTop: 26 }}>
+                    <SectionLabel to="/reports" label="Rapports">Ce mois‑ci</SectionLabel>
+                    <div style={{ display: 'flex', gap: 12 }}>
+                        <StatTile
+                            label="Revenus"
+                            value={globalMetrics.income}
+                            income
+                            delta={globalMetrics.comparison.incomeVar}
+                        />
+                        <StatTile
+                            label="Dépenses"
+                            value={globalMetrics.expenses}
+                            delta={globalMetrics.comparison.expenseVar}
+                        />
+                    </div>
+                </div>
+
+                {/* Budget objectives */}
+                {budgets.length > 0 && (
+                    <div style={{ marginTop: 26 }}>
+                        <SectionLabel to="/reports" label="Voir tout">Objectifs</SectionLabel>
+                        <div style={{
+                            background: 'var(--surface)', border: '1px solid var(--line)',
+                            borderRadius: 22, padding: '6px 18px',
+                        }}>
+                            {budgets.map((b, i) => (
+                                <div key={b.id} style={{ padding: '15px 0', borderTop: i ? '1px solid var(--line)' : 'none' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 11 }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                            <span style={{
+                                                width: 9, height: 9, borderRadius: 99,
+                                                background: b.percentage > 90 ? 'var(--clay)' : b.percentage > 72 ? '#c79a52' : 'var(--pine)',
+                                            }} />
+                                            <span style={{ font: '600 14px var(--sans)', color: 'var(--ink)' }}>{b.name}</span>
+                                        </div>
+                                        <span style={{ font: '480 12.5px var(--sans)', color: 'var(--ink-muted)', fontVariantNumeric: 'tabular-nums' }}>
+                                            {formatCFA(b.spent)} <span style={{ opacity: 0.6 }}>/ {formatCFA(b.monthlyLimit)}</span>
+                                        </span>
+                                    </div>
+                                    <ProgressBar pct={b.percentage} />
+                                </div>
                             ))}
                         </div>
-                    </section>
-
-                    {/* Statistiques dynamiques (teintées) */}
-                    <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
-                        <MetricCard 
-                            title="Revenus du mois" 
-                            amount={currentMetrics.income} 
-                            variance={currentMetrics.comparison.incomeVar} 
-                            icon={<TrendingUp className="h-4 w-4" />}
-                            color="emerald"
-                            className="bg-emerald-500/5 dark:bg-emerald-500/3 border-emerald-500/10 shadow-emerald-500/5"
-                            key={`income-${activeIndex}`} 
-                        />
-
-                        <MetricCard 
-                            title="Dépenses du mois" 
-                            amount={currentMetrics.expenses} 
-                            variance={currentMetrics.comparison.expenseVar} 
-                            icon={<TrendingDown className="h-4 w-4" />}
-                            color="red"
-                            inverse
-                            className="bg-red-500/5 dark:bg-red-500/3 border-red-500/10 shadow-red-500/5"
-                            key={`expense-${activeIndex}`}
-                        />
                     </div>
+                )}
 
-                    {/* Statistiques rapides (Aujourd'hui & Semaine) */}
-                    {activeIndex === 0 && (
-                        <div className="grid grid-cols-2 gap-4">
-                            <QuickStatsCard title="Aujourd'hui" expenses={todayStats.expenses} income={todayStats.income} />
-                            <QuickStatsCard title="Cette semaine" expenses={weekStats.expenses} income={weekStats.income} />
+                {/* Recent activity */}
+                <div style={{ marginTop: 26 }}>
+                    <SectionLabel to="/transactions" label="Tout voir">Activité récente</SectionLabel>
+                    {recents.length > 0 ? (
+                        <div style={{
+                            background: 'var(--surface)', border: '1px solid var(--line)',
+                            borderRadius: 22, padding: '4px 14px',
+                        }}>
+                            {recents.map((t, i) => (
+                                <TxRow key={t.id} tx={t} showBorder={i > 0} onClick={() => navigate('/transactions')} />
+                            ))}
+                        </div>
+                    ) : (
+                        <div style={{
+                            background: 'var(--surface)', border: '1px solid var(--line)',
+                            borderRadius: 22, padding: '32px 20px', textAlign: 'center',
+                        }}>
+                            <div style={{ font: '600 14px var(--sans)', color: 'var(--ink-soft)', marginBottom: 4 }}>
+                                Aucune transaction récente
+                            </div>
+                            <div style={{ font: '460 12px var(--sans)', color: 'var(--ink-muted)', marginBottom: 16 }}>
+                                Ajoutez votre première transaction pour commencer
+                            </div>
+                            <button
+                                onClick={() => navigate('/transactions/new')}
+                                style={{
+                                    padding: '10px 24px', borderRadius: 99, background: 'var(--pine)',
+                                    color: '#fff', border: 'none', cursor: 'pointer', font: '600 13px var(--sans)',
+                                }}
+                            >
+                                Nouvelle transaction
+                            </button>
                         </div>
                     )}
-
-                    {/* Section graphiques (Analyses hybrides) */}
-                    <div className="grid gap-4 md:grid-cols-6">
-                        <Card className="md:col-span-4 bg-white/60 dark:bg-white/2 backdrop-blur-md border-border/50 shadow-sm rounded-3xl overflow-hidden flex flex-col transition-all duration-300">
-                            <CardHeader className="flex flex-row items-center justify-between pb-4">
-                                <div>
-                                    <CardTitle className="text-sm font-black uppercase tracking-tight flex items-center gap-2">
-                                        <Activity className="w-4 h-4 text-primary" />
-                                        Santé Financière
-                                    </CardTitle>
-                                    <CardDescription className="text-[10px] font-bold text-muted-foreground/50 uppercase tracking-widest">Activité & Tendance du solde</CardDescription>
-                                </div>
-                            </CardHeader>
-                            <CardContent className="h-60 flex items-center justify-center grow px-2">
-                                {hasChartData ? (
-                                    <Bar 
-                                        data={mixedChartData} 
-                                        options={{
-                                            responsive: true,
-                                            maintainAspectRatio: false,
-                                            plugins: { 
-                                                legend: { display: false },
-                                                tooltip: {
-                                                    mode: 'index',
-                                                    intersect: false,
-                                                    padding: 10,
-                                                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                                                    titleColor: '#1f2937',
-                                                    bodyColor: '#4b5563',
-                                                    borderColor: 'rgba(0,0,0,0.1)',
-                                                    borderWidth: 1,
-                                                    displayColors: true,
-                                                    boxPadding: 4
-                                                }
-                                            },
-                                            scales: {
-                                                x: { grid: { display: false }, ticks: { font: { size: 9, weight: 'bold' }, color: 'oklch(0.45 0.04 155)' } },
-                                                y: { 
-                                                    id: 'y',
-                                                    position: 'left',
-                                                    grid: { color: 'rgba(0,0,0,0.02)' }, 
-                                                    ticks: { display: false } 
-                                                },
-                                                y1: {
-                                                    id: 'y1',
-                                                    position: 'right',
-                                                    grid: { display: false },
-                                                    ticks: { display: false }
-                                                }
-                                            }
-                                        }} 
-                                    />
-                                ) : (
-                                    <div className="flex flex-col items-center gap-4 py-8 opacity-40">
-                                        <BarChart3 className="w-12 h-12 text-muted-foreground/20" />
-                                        <div className="text-center space-y-1">
-                                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">En attente de flux</p>
-                                            <p className="text-[9px] text-muted-foreground/60 italic">L'analyse d'activité s'affichera ici</p>
-                                        </div>
-                                    </div>
-                                )}
-                            </CardContent>
-                        </Card>
-
-                        <Card className="md:col-span-2 bg-white/60 dark:bg-white/2 backdrop-blur-md border-border/50 shadow-sm rounded-3xl overflow-hidden flex flex-col transition-all duration-300">
-                            <CardHeader className="pb-4">
-                                <CardTitle className="text-sm font-black uppercase tracking-tight flex items-center gap-2">
-                                    <PieIcon className="w-4 h-4 text-primary" />
-                                    Répartition
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent className="flex flex-col items-center justify-center grow pt-0 min-h-[200px]">
-                                {hasCategoryData ? (
-                                    <>
-                                        <div className="h-[140px] w-full">
-                                            <Doughnut 
-                                                data={doughnutData} 
-                                                options={{
-                                                    responsive: true,
-                                                    maintainAspectRatio: false,
-                                                    plugins: { legend: { display: false } },
-                                                    cutout: '78%'
-                                                }} 
-                                            />
-                                        </div>
-                                        <div className="mt-6 w-full space-y-2 px-2 pb-2">
-                                            {categoryChart.labels.map((label, i) => (
-                                                <div key={label} className="flex items-center justify-between text-[9px] font-black">
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="w-2 h-2 rounded-full shadow-sm" style={{ backgroundColor: doughnutData.datasets[0].backgroundColor[i] }} />
-                                                        <span className="truncate max-w-[75px] uppercase tracking-tighter opacity-80">{label}</span>
-                                                    </div>
-                                                    <span className="text-muted-foreground tabular-nums">{formatCurrency(categoryChart.datasets[i])}</span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </>
-                                ) : (
-                                    <div className="flex flex-col items-center gap-4 py-8 grow justify-center opacity-40">
-                                        <PieIcon className="w-12 h-12 text-muted-foreground/20" />
-                                        <div className="text-center px-4">
-                                            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Aucune dépense</p>
-                                        </div>
-                                    </div>
-                                )}
-                            </CardContent>
-                        </Card>
-                    </div>
-
-                    {/* Transactions récentes */}
-                    <Card className="bg-white/60 dark:bg-white/2 backdrop-blur-md border-border/50 overflow-hidden shadow-sm rounded-3xl transition-all duration-300">
-                        <CardHeader className="flex flex-row items-center justify-between pb-3 bg-muted/10 border-b border-border/10">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 bg-primary/10 rounded-xl text-primary">
-                                    <History className="w-4.5 h-4.5" />
-                                </div>
-                                <CardTitle className="text-sm font-black uppercase tracking-tight">Dernières opérations</CardTitle>
-                            </div>
-                            <Link to="/transactions" className="text-[10px] font-black text-primary hover:underline flex items-center gap-1 uppercase tracking-tighter">
-                                Tout voir <ChevronRight className="w-3 h-3" />
-                            </Link>
-                        </CardHeader>
-                        <CardContent className="p-0">
-                            {recentTransactions.length > 0 ? (
-                                <div className="divide-y divide-border/10">
-                                    {recentTransactions?.map(t => (
-                                        <div key={t.id} className="flex items-center justify-between p-4 active:bg-muted/30 transition-colors">
-                                            <div className="flex items-center gap-4 flex-1 min-w-0">
-                                                <div className={cn(
-                                                    "w-10 h-10 rounded-2xl flex items-center justify-center text-xs font-bold shrink-0 shadow-sm",
-                                                    t.isIncome 
-                                                        ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400" 
-                                                        : "bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400"
-                                                )}>
-                                                    {t.category?.name?.charAt(0) || "T"}
-                                                </div>
-                                                <div className="flex flex-col min-w-0 py-0.5">
-                                                    <span className="text-sm font-bold truncate line-clamp-1 leading-snug mb-1">{t.description}</span>
-                                                    <span className="text-[10px] text-muted-foreground truncate uppercase tracking-widest font-medium opacity-60 leading-relaxed">{t.account?.name}</span>
-                                                </div>
-                                            </div>
-                                            <div className={cn(
-                                                "text-sm font-black tabular-nums tracking-tighter shrink-0 ml-2 flex items-center",
-                                                t.isIncome ? "text-emerald-600" : "text-foreground"
-                                            )}>
-                                                <span>{t.isIncome ? "+" : "-"}</span>
-                                                <AmountDisplay amount={Math.abs(t.amount)} compact={true} showMarquee={false} />
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : (
-                                <div className="p-16 text-center flex flex-col items-center gap-4 bg-muted/5">
-                                    <div className="w-16 h-16 rounded-3xl bg-muted/20 flex items-center justify-center">
-                                        <Layers className="w-8 h-8 text-muted-foreground/20" />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <p className="text-xs text-muted-foreground font-bold uppercase tracking-widest">Le vide total</p>
-                                        <p className="text-[10px] text-muted-foreground/60">Ajoutez une transaction pour commencer</p>
-                                    </div>
-                                    <Button 
-                                        variant="outline" 
-                                        size="sm" 
-                                        className="mt-2 text-[10px] font-bold h-8 px-6 rounded-full border-primary/20 text-primary uppercase tracking-tighter"
-                                        onClick={() => navigate("/transactions/new")}
-                                    >
-                                        Nouvelle transaction
-                                    </Button>
-                                </div>
-                            )}
-                        </CardContent>
-                    </Card>
-
-                    {/* Suivi des budgets mensuels */}
-                    {budgets.length > 0 && (
-                        <section className="space-y-3 pt-2">
-                            <div className="flex items-center justify-between px-1">
-                                <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/80 flex items-center gap-2">
-                                    <Target className="w-4.5 h-4.5 text-primary" />
-                                    Objectifs Budgets
-                                </h2>
-                            </div>
-                            <div className="grid gap-4">
-                                {budgets.map(budget => (
-                                    <Card key={budget.id} className="bg-white/60 dark:bg-white/2 backdrop-blur-md border-border/50 p-5 shadow-sm rounded-2xl transition-all duration-300">
-                                        <div className="flex justify-between items-center mb-3">
-                                            <div className="flex flex-col gap-0.5">
-                                                <span className="text-sm font-black tracking-tight">{budget.name}</span>
-                                                <span className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-tighter">
-                                                    {formatCurrency(budget.spent)} / {formatCurrency(budget.monthlyLimit)}
-                                                </span>
-                                            </div>
-                                            <div className={cn(
-                                                "text-[10px] font-black px-2.5 py-1 rounded-lg shadow-sm border border-transparent",
-                                                budget.percentage > 90 ? "bg-red-500/10 text-red-600 border-red-500/10" : "bg-primary/10 text-primary border-primary/10"
-                                            )}>
-                                                {Math.round(budget.percentage)}%
-                                            </div>
-                                        </div>
-                                        <div className="w-full h-2.5 bg-muted/30 rounded-full overflow-hidden p-0.5 border border-border/5">
-                                            <div 
-                                                className={cn(
-                                                    "h-full rounded-full transition-all duration-700 ease-out shadow-sm",
-                                                    budget.percentage > 90 ? "bg-red-500" : budget.percentage > 70 ? "bg-amber-500" : "bg-primary"
-                                                )}
-                                                style={{ width: `${budget.percentage}%` }}
-                                            />
-                                        </div>
-                                    </Card>
-                                ))}
-                            </div>
-                        </section>
-                    )}
-
                 </div>
-            </div>
 
-            <FAB />
+            </div>
         </div>
     );
 }
-
-function TotalBalanceCard({ balance }) {
-    const [isCompact, setIsCompact] = useState(true);
-    const navigate = useNavigate();
-    
-    return (
-        <Card 
-            className="shrink-0 w-[calc(100vw-4rem)] max-w-104 snap-center bg-primary text-primary-foreground border-none shadow-xl shadow-primary/20 relative overflow-hidden py-0 cursor-pointer select-none"
-            onClick={() => setIsCompact(!isCompact)}
-        >
-            <CardContent className="p-5 h-full flex flex-col justify-between">
-                <div className="flex justify-between items-start">
-                    <div className="space-y-4 min-w-0 flex-1">
-                        <p className="text-[10px] font-black opacity-70 uppercase tracking-widest">SOLDE TOTAL</p>
-                        <AmountDisplay 
-                            amount={balance} 
-                            compact={isCompact} 
-                            className="text-3xl font-black tracking-tighter"
-                        />
-                    </div>
-                    <div className="p-2.5 bg-white/20 rounded-2xl backdrop-blur-md shrink-0">
-                        <Layers className="w-5 h-5 text-white" />
-                    </div>
-                </div>
-                
-                <div className="mt-6 flex items-center justify-between">
-                    <p className="text-[10px] font-bold opacity-60 uppercase tracking-tight">
-                        Tous vos comptes cumulés
-                    </p>
-                    <Button 
-                        variant="ghost" 
-                        size="icon-sm" 
-                        className="bg-white/20 hover:bg-white/30 text-white border-none rounded-xl h-9 w-9"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            navigate("/transactions");
-                        }}
-                    >
-                        <History className="w-4 h-4" />
-                    </Button>
-                </div>
-            </CardContent>
-            <div className="absolute -bottom-6 -right-6 w-24 h-24 bg-white/10 rounded-full blur-2xl" />
-            <div className="absolute -top-6 -left-6 w-32 h-32 bg-white/5 rounded-full blur-3xl" />
-        </Card>
-    );
-}
-
-function AccountBalanceCard({ account }) {
-    const [isCompact, setIsCompact] = useState(true);
-    const navigate = useNavigate();
-    
-    return (
-        <Card 
-            className="shrink-0 w-[calc(100vw-4rem)] max-w-104 snap-center bg-white/60 dark:bg-white/3 backdrop-blur-md border-border/50 relative overflow-hidden py-0 shadow-sm transition-all duration-300 cursor-pointer select-none"
-            onClick={() => setIsCompact(!isCompact)}
-        >
-            <CardContent className="p-5 h-full flex flex-col justify-between">
-                <div className="flex justify-between items-start">
-                    <div className="space-y-4 min-w-0 flex-1">
-                        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest truncate">{account.name}</p>
-                        <AmountDisplay 
-                            amount={account.balance} 
-                            compact={isCompact} 
-                            className="text-3xl font-black tracking-tighter"
-                        />
-                    </div>
-                    <div className="p-2.5 bg-primary/10 rounded-2xl shrink-0">
-                        <WalletCards className="w-5 h-5 text-primary" />
-                    </div>
-                </div>
-                
-                <div className="mt-6 flex items-center justify-between">
-                    <p className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-tight">
-                        Compte individuel
-                    </p>
-                    <div className="flex gap-2">
-                        <Button 
-                            variant="secondary" 
-                            size="icon-sm" 
-                            className="rounded-xl shadow-sm border border-border/50 h-9 w-9 bg-background/50"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                navigate("/transactions", {
-                                    state: {
-                                        initialFilters: { accountIds: [account.id] }
-                                    }
-                                });
-                            }}
-                        >
-                            <History className="w-4 h-4 text-muted-foreground" />
-                        </Button>
-                        <Button 
-                            variant="secondary" 
-                            size="icon-sm" 
-                            className="rounded-xl shadow-sm border border-border/50 h-9 w-9 bg-background/50"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                navigate("/transactions/transfer", { 
-                                    state: { 
-                                        from: "/",
-                                        defaultValues: { fromAccountId: account.id }
-                                    } 
-                                });
-                            }}
-                        >
-                            <ArrowRightLeft className="w-4 h-4 text-muted-foreground" />
-                        </Button>
-                        <Button 
-                            variant="secondary" 
-                            size="icon-sm" 
-                            className="rounded-xl shadow-sm border h-9 w-9 bg-primary/10 hover:bg-primary/20 border-primary/10"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                navigate("/transactions/new", { 
-                                    state: { 
-                                        from: "/",
-                                        defaultValues: { accountId: account.id }
-                                    } 
-                                });
-                            }}
-                        >
-                            <Plus className="w-4 h-4 text-primary" />
-                        </Button>
-                    </div>
-                </div>
-            </CardContent>
-        </Card>
-    );
-}
-
-function MetricCard({ title, amount, variance, icon, color, inverse = false, className }) {
-    const [isCompact, setIsCompact] = useState(true);
-    const isPositive = variance >= 0;
-    const isGood = inverse ? !isPositive : isPositive;
-
-    return (
-        <Card 
-            className={cn(
-                "bg-card/50 backdrop-blur-md border-border/50 animate-in fade-in slide-in-from-bottom-2 duration-500 shadow-sm rounded-3xl transition-all cursor-pointer select-none",
-                className
-            )}
-            onClick={() => setIsCompact(!isCompact)}
-        >
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-                <CardTitle className="text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground/70">
-                    {title}
-                </CardTitle>
-                <div className={cn(
-                    "p-2 rounded-xl backdrop-blur-md shadow-sm border",
-                    color === 'emerald' ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/10" : "bg-red-500/10 text-red-600 border-red-500/10"
-                )}>
-                    {icon}
-                </div>
-            </CardHeader>
-            <CardContent>
-                <AmountDisplay 
-                    amount={amount} 
-                    compact={isCompact} 
-                    className="text-3xl font-black tabular-nums tracking-tighter" 
-                />
-                <div className="flex items-center gap-1.5 mt-2">
-                    <div className={cn(
-                        "flex items-center text-[10px] font-black px-2 py-0.5 rounded-lg shadow-sm border",
-                        isGood 
-                            ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/10" 
-                            : "bg-red-500/10 text-red-600 border-red-500/10"
-                    )}>
-                        {isPositive ? <ArrowUpRight className="h-3 w-3 mr-0.5" /> : <ArrowDownRight className="h-3 w-3 mr-0.5" />}
-                        {Math.abs(variance).toFixed(1)}%
-                    </div>
-                    <span className="text-[10px] text-muted-foreground/60 font-bold uppercase tracking-widest">vs mois dernier</span>
-                </div>
-            </CardContent>
-        </Card>
-    );
-}
-
-function QuickStatsCard({ title, expenses, income }) {
-    const [isCompact, setIsCompact] = useState(true);
-    
-    return (
-        <Card 
-            className="bg-primary/5 dark:bg-primary/3 border-primary/10 p-4 flex flex-col gap-2 shadow-sm rounded-2xl backdrop-blur-sm cursor-pointer select-none"
-            onClick={() => setIsCompact(!isCompact)}
-        >
-            <div className="flex items-center gap-2 text-primary/70">
-                <Calendar className="w-3.5 h-3.5" />
-                <span className="text-[10px] font-black uppercase tracking-widest">{title}</span>
-            </div>
-            <div className="flex flex-col min-w-0">
-                <AmountDisplay amount={expenses} compact={isCompact} className="text-sm font-black text-red-600" />
-                <AmountDisplay amount={income} compact={isCompact} className="text-xs font-bold text-emerald-700 opacity-80" />
-            </div>
-        </Card>
-    );
-}
-
