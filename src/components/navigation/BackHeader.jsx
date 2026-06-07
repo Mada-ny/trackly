@@ -18,13 +18,14 @@ export function BackHeader({
             <div className="px-4 pt-6 pb-4 space-y-2">
                 <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2 overflow-hidden">
-                        <Button 
-                            onClick={handleBack} 
-                            variant="ghost" 
+                        <Button
+                            onClick={handleBack}
+                            variant="ghost"
                             size="icon-sm"
-                            className="rounded-full h-9 w-9 -ml-2"
+                            aria-label="Retour"
+                            className="rounded-full h-11 w-11 -ml-2"
                         >
-                            <ChevronLeft className="w-6 h-6 text-foreground" />
+                            <ChevronLeft className="w-6 h-6 text-foreground" aria-hidden="true" />
                         </Button>
                         
                         {title && (

@@ -33,9 +33,11 @@ export default function SplashScreen({ onFinish }) {
             <div className="relative flex flex-col items-center">
                 {/* Logo animé */}
                 <div className="w-24 h-24 mb-6 animate-in zoom-in-50 duration-700 ease-out">
-                    <img 
-                        src="/logo.svg" 
-                        alt="Trackly Logo" 
+                    <img
+                        src="/logo.svg"
+                        alt="Trackly Logo"
+                        width="96"
+                        height="96"
                         className="w-full h-full drop-shadow-2xl"
                     />
                 </div>
