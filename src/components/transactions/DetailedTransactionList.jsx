@@ -15,15 +15,19 @@ function MonthHeaderRow({ month, totals, transactionCount, isCollapsed, onToggle
         >
             <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 cursor-pointer active:opacity-70" onClick={onToggle}>
+                    <button
+                        className="flex items-center gap-2 cursor-pointer active:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+                        onClick={onToggle}
+                        aria-expanded={!isCollapsed}
+                    >
                         <h3 className="text-lg font-bold tracking-tight text-foreground capitalize">
                             {month}
                         </h3>
-                        <ChevronDown className={cn(
+                        <ChevronDown aria-hidden="true" className={cn(
                             "w-4 h-4 text-muted-foreground transition-transform duration-200",
                             isCollapsed && "-rotate-90"
                         )} />
-                    </div>
+                    </button>
                     <span className="text-xs font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
                         {transactionCount} opé.
                     </span>
@@ -74,12 +78,16 @@ function DayHeaderRow({ date, totals }) {
 function TransactionRow({ transaction, onClick }) {
     return (
         <div
+            role="button"
+            tabIndex={0}
             onClick={() => onClick(transaction)}
-            className="group relative flex items-center justify-between gap-3 px-4 py-3 cursor-pointer transition-colors active:bg-muted/50 border-b border-border/30 last:border-0"
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(transaction); } }}
+            aria-label={`${transaction.description}, ${transaction.isIncome ? '+' : '-'}${Math.abs(transaction.amount)}`}
+            className="group relative flex items-center justify-between gap-3 px-4 py-3 cursor-pointer transition-colors active:bg-muted/50 hover:bg-muted/10 border-b border-border/30 last:border-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
         >
             <div className="flex items-center gap-3 flex-1 min-w-0">
                 <div className={cn(
-                    "w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0",
+                    "w-10 h-10 rounded-2xl flex items-center justify-center text-sm font-bold shrink-0 shadow-sm",
                     transaction.isIncome 
                         ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400" 
                         : "bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400"
@@ -87,27 +95,44 @@ function TransactionRow({ transaction, onClick }) {
                     {transaction.category?.name?.charAt(0) || "T"}
                 </div>
                 
-                <div className="flex-1 min-w-0 py-0.5">
-                    <h4 className="text-sm font-semibold text-foreground line-clamp-1 leading-snug mb-0.5">
-                        {transaction.description}
-                    </h4>
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground leading-relaxed">
-                        <span className="truncate max-w-[100px]">{transaction.category?.name}</span>
+                <div className="flex-1 min-w-0 py-0.5 grid grid-cols-1 md:grid-cols-12 md:items-center gap-2">
+                    <div className="md:col-span-6 lg:col-span-5">
+                        <h4 className="text-sm font-bold text-foreground line-clamp-1 leading-snug">
+                            {transaction.description}
+                        </h4>
+                    </div>
+                    
+                    <div className="md:col-span-3 lg:col-span-3 hidden md:flex items-center">
+                        <span className="text-xs font-bold text-muted-foreground/60 uppercase tracking-tighter truncate">
+                            {transaction.category?.name || "Sans catégorie"}
+                        </span>
+                    </div>
+
+                    <div className="md:col-span-3 lg:col-span-4 hidden lg:flex items-center">
+                        <span className="text-xs font-bold text-muted-foreground/40 uppercase tracking-widest truncate">
+                            {transaction.account?.name}
+                        </span>
+                    </div>
+
+                    <div className="md:hidden flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground/60 uppercase tracking-tighter">
+                        <span>{transaction.category?.name}</span>
                         <span className="opacity-30">•</span>
-                        <span className="truncate max-w-[100px]">{transaction.account?.name}</span>
+                        <span>{transaction.account?.name}</span>
                     </div>
                 </div>
             </div>
             
-            <div className="flex items-center gap-2 shrink-0 max-w-[40%]">
+            <div className="flex items-center gap-4 shrink-0">
                 <div className={cn(
-                    "text-sm font-bold tabular-nums flex items-center justify-end",
+                    "text-sm font-black tabular-nums flex items-center justify-end min-w-[80px]",
                     transaction.isIncome ? "text-emerald-600 dark:text-emerald-400" : "text-foreground"
                 )}>
                     <span className="shrink-0">{transaction.isIncome ? "+" : "-"}</span>
-                    <AmountDisplay amount={Math.abs(transaction.amount)} compact={true} showMarquee={false} className="text-sm font-bold" />
+                    <AmountDisplay amount={Math.abs(transaction.amount)} compact={true} showMarquee={false} className="text-sm font-black" />
                 </div>
-                <ChevronRight className="w-4 h-4 text-muted-foreground/30 shrink-0" />
+                <div className="w-6 h-6 flex items-center justify-center rounded-full group-hover:bg-muted transition-colors">
+                    <ChevronRight className="w-4 h-4 text-muted-foreground/30 shrink-0" />
+                </div>
             </div>
         </div>
     );
