@@ -1,86 +1,51 @@
-import { BackHeader } from "@/components/navigation/BackHeader";
-import {
-    Breadcrumb,
-    BreadcrumbItem,
-    BreadcrumbLink,
-    BreadcrumbList,
-    BreadcrumbPage,
-    BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
-import { Link } from "react-router-dom";
+import { useState, useDeferredValue } from "react";
+import { useNavigate } from "react-router-dom";
+import { ChevronLeft, Plus, Search, X, Pencil, Trash2, AlertTriangle } from "lucide-react";
 import { useAccounts } from "@/utils/db/hooks";
-import { Button } from "@/components/ui/button";
-import { Plus, Edit2, Trash2, Wallet, Search, X } from "lucide-react";
-import { useState } from "react";
-import { useDebounce } from "use-debounce";
-import { Input } from "@/components/ui/input";
-import { 
-    Drawer, 
-    DrawerContent, 
-    DrawerHeader, 
-    DrawerTitle, 
-    DrawerDescription 
-} from "@/components/ui/drawer";
+import { GlyphChip } from "@/components/ui/glyph-chip";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
 import AccountForm from "@/components/accounts/AccountForm";
+import { getAccountVisuals } from "@/utils/ui/iconMap";
+import { useCurrency } from "@/utils/number/CurrencyProvider";
 import { db } from "@/utils/db/schema";
 import { toast } from "sonner";
-import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { useCurrency } from "@/utils/number/CurrencyProvider";
+
+const iconBtn = {
+    width: 38, height: 38, borderRadius: 12, border: 'none', background: 'transparent', cursor: 'pointer',
+    color: 'var(--ink-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+};
 
 export default function AccountsManagementPage() {
+    const navigate = useNavigate();
     const accounts = useAccounts();
-    const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-    const [selectedAccount, setSelectedAccount] = useState(null);
-    const [accountToDelete, setAccountToDelete] = useState(null);
     const { formatCurrency } = useCurrency();
 
-    // État de recherche local
-    const [searchQuery, setSearchQuery] = useState("");
-    const [debouncedSearchQuery] = useDebounce(searchQuery, 300);
+    const [query, setQuery] = useState("");
+    const deferredQuery = useDeferredValue(query);
+    const [formOpen, setFormOpen] = useState(false);
+    const [editing, setEditing] = useState(null);
+    const [toDelete, setToDelete] = useState(null);
+    const [blocked, setBlocked] = useState(null);
 
-    // Filtrage des comptes
-    const filteredAccounts = accounts.filter(account => 
-        account.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase())
-    );
+    const filtered = accounts.filter((a) => a.name.toLowerCase().includes(deferredQuery.toLowerCase()));
+    const total = accounts.reduce((sum, a) => sum + a.initialBalance, 0);
 
-    // Ouvre le formulaire pour un nouveau compte
-    const handleAdd = () => {
-        setSelectedAccount(null);
-        setIsDrawerOpen(true);
-    };
+    const openAdd = () => { setEditing(null); setFormOpen(true); };
+    const openEdit = (account) => { setEditing(account); setFormOpen(true); };
 
-    // Ouvre le formulaire pour modifier un compte existant
-    const handleEdit = (account) => {
-        setSelectedAccount(account);
-        setIsDrawerOpen(true);
-    };
-
-    // Vérifie si le compte peut être supprimé (pas de transactions liées)
-    const handleDeleteClick = async (account) => {
+    const askDelete = async (account) => {
         const count = await db.transactions.where("accountId").equals(account.id).count();
-        if (count > 0) {
-            toast.error(`Impossible de supprimer ce compte : il contient ${count} transactions.`);
-            return;
-        }
-        setAccountToDelete(account);
+        if (count > 0) setBlocked({ account, count });
+        else setToDelete(account);
     };
 
-    // Procède à la suppression effective
     const confirmDelete = async () => {
-        if (!accountToDelete) return;
+        if (!toDelete) return;
         try {
-            await db.accounts.delete(accountToDelete.id);
+            await db.accounts.delete(toDelete.id);
             toast.success("Compte supprimé");
-            setAccountToDelete(null);
+            setToDelete(null);
         } catch (error) {
             toast.error("Erreur lors de la suppression");
             console.error(error);
@@ -88,151 +53,105 @@ export default function AccountsManagementPage() {
     };
 
     return (
-        <div className="flex flex-col h-screen bg-background">
-            <BackHeader 
-                title="Mes comptes" 
-                description="Gérez vos sources d'argent et soldes"
-                fallback="/settings" 
-                action={
-                    <Button 
-                        onClick={handleAdd} 
-                        variant="ghost" 
-                        size="icon" 
-                        className="rounded-full h-9 w-9"
-                    >
-                        <Plus className="w-6 h-6 text-foreground" />
-                    </Button>
-                }
-            />
-            
-            <div className="px-4 py-3 shrink-0 space-y-4">
-                <Breadcrumb>
-                    <BreadcrumbList>
-                        <BreadcrumbItem>
-                            <BreadcrumbLink asChild>
-                                <Link to="/settings">Paramètres</Link>
-                            </BreadcrumbLink>
-                        </BreadcrumbItem>
-                        <BreadcrumbSeparator />
-                        <BreadcrumbItem>
-                            <BreadcrumbPage>Mes comptes</BreadcrumbPage>
-                        </BreadcrumbItem>
-                    </BreadcrumbList>
-                </Breadcrumb>
+        <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100dvh' }}>
+            <div style={{ flexShrink: 0, padding: '56px 20px 14px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                    <button onClick={() => navigate('/settings')} aria-label="Retour" style={{
+                        width: 40, height: 40, borderRadius: 13, border: '1px solid var(--line)', background: 'var(--surface)',
+                        color: 'var(--ink)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+                    }}><ChevronLeft size={20} strokeWidth={2} /></button>
+                    <button onClick={openAdd} style={{
+                        height: 40, padding: '0 15px 0 12px', borderRadius: 13, border: 'none', background: 'var(--pine)', color: '#fff',
+                        display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', font: '600 13.5px var(--sans)',
+                        boxShadow: '0 6px 16px rgba(44,84,72,0.26)',
+                    }}><Plus size={17} strokeWidth={2.4} /> Ajouter</button>
+                </div>
+                <h1 style={{ fontFamily: 'var(--serif)', fontSize: 32, color: 'var(--ink)', margin: 0, lineHeight: 1 }}>Mes comptes</h1>
+                <div style={{ font: '480 13px var(--sans)', color: 'var(--ink-muted)', marginTop: 7 }}>
+                    {accounts.length} compte{accounts.length > 1 ? 's' : ''} · solde total {formatCurrency(total)}
+                </div>
+            </div>
 
-                {/* Barre de recherche */}
-                <div className="relative group">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
-                    <Input
-                        type="text"
-                        placeholder="Rechercher un compte..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full pl-10 pr-10 h-11 rounded-2xl border-none bg-muted/50 focus-visible:ring-2 focus-visible:ring-primary/20 transition-all text-base"
+            <div className="no-sb" style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '4px 20px 40px' }}>
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center', marginBottom: 18 }}>
+                    <span style={{ position: 'absolute', left: 14, color: 'var(--ink-muted)', display: 'flex' }}><Search size={18} strokeWidth={1.8} /></span>
+                    <input
+                        value={query}
+                        onChange={(e) => setQuery(e.target.value)}
+                        placeholder="Rechercher un compte…"
+                        style={{
+                            width: '100%', boxSizing: 'border-box', height: 46, paddingLeft: 42, paddingRight: 38, borderRadius: 15,
+                            border: '1px solid var(--line)', background: 'var(--surface)', font: '500 14.5px var(--sans)', color: 'var(--ink)', outline: 'none',
+                        }}
                     />
-                    {searchQuery && (
-                        <button
-                            onClick={() => setSearchQuery('')}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-muted rounded-full transition-colors"
-                        >
-                            <X className="h-4 w-4 text-muted-foreground" />
+                    {query && (
+                        <button onClick={() => setQuery('')} style={{ position: 'absolute', right: 12, border: 'none', background: 'none', color: 'var(--ink-muted)', cursor: 'pointer', display: 'flex', padding: 4 }}>
+                            <X size={16} strokeWidth={2} />
                         </button>
                     )}
                 </div>
-            </div>
 
-            <div className="grow overflow-y-auto no-scrollbar p-4 pb-24">
-                <div className="grid gap-3 max-w-2xl mx-auto">
-                    {filteredAccounts.map(account => (
-                        <div 
-                            key={account.id}
-                            className="flex items-center justify-between p-4 rounded-2xl border border-border/50 bg-card/50 backdrop-blur-sm shadow-sm"
-                        >
-                            <div className="flex items-center gap-3">
-                                <div className="p-2.5 bg-primary/10 rounded-xl text-primary shrink-0">
-                                    <Wallet className="w-5 h-5" />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
+                    {filtered.map((account) => {
+                        const { icon, color } = getAccountVisuals(account);
+                        return (
+                            <div key={account.id} style={{
+                                display: 'flex', alignItems: 'center', gap: 13, background: 'var(--surface)',
+                                border: '1px solid var(--line)', borderRadius: 20, padding: '14px 14px 14px 15px',
+                            }}>
+                                <GlyphChip icon={icon} color={color} size={44} radius={14} soft={0.13} />
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                    <div style={{ font: '650 15px var(--sans)', color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{account.name}</div>
+                                    <div style={{ font: '500 12px var(--sans)', color: 'var(--ink-muted)', marginTop: 3 }}>{account.kind || 'Compte'} · {formatCurrency(account.initialBalance)}</div>
                                 </div>
-                                <div className="min-w-0">
-                                    <p className="font-bold text-foreground leading-tight truncate">
-                                        {account.name}
-                                    </p>
-                                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">
-                                        Solde initial: {formatCurrency(account.initialBalance)}
-                                    </p>
-                                </div>
+                                <button onClick={() => openEdit(account)} style={iconBtn}><Pencil size={17} strokeWidth={1.8} /></button>
+                                <button onClick={() => askDelete(account)} style={{ ...iconBtn, color: 'var(--clay)' }}><Trash2 size={17} strokeWidth={1.8} /></button>
                             </div>
-
-                            <div className="flex items-center gap-1">
-                                <Button 
-                                    variant="ghost" 
-                                    size="icon-sm" 
-                                    className="h-8 w-8 rounded-full text-muted-foreground"
-                                    onClick={() => handleEdit(account)}
-                                >
-                                    <Edit2 className="w-4 h-4" />
-                                </Button>
-                                <Button 
-                                    variant="ghost" 
-                                    size="icon-sm" 
-                                    className="h-8 w-8 rounded-full text-red-500 hover:text-red-600 hover:bg-red-50"
-                                    onClick={() => handleDeleteClick(account)}
-                                >
-                                    <Trash2 className="w-4 h-4" />
-                                </Button>
-                            </div>
-                        </div>
-                    ))}
-
-                    {filteredAccounts.length === 0 && (
-                        <div className="text-center py-12">
-                            <p className="text-muted-foreground italic">
-                                {searchQuery ? "Aucun compte ne correspond à votre recherche." : "Aucun compte configuré."}
-                            </p>
+                        );
+                    })}
+                    {filtered.length === 0 && (
+                        <div style={{ textAlign: 'center', padding: '50px 20px', color: 'var(--ink-muted)', font: '460 14px var(--sans)', fontStyle: 'italic' }}>
+                            {query ? 'Aucun compte ne correspond.' : 'Aucun compte configuré.'}
                         </div>
                     )}
                 </div>
             </div>
 
-            {/* Formulaire d'ajout/modification dans un tiroir mobile-friendly */}
-            <Drawer open={isDrawerOpen} onOpenChange={setIsDrawerOpen}>
-                <DrawerContent>
-                    <div className="max-w-2xl mx-auto w-full px-4 pb-8">
+            <Drawer open={formOpen} onOpenChange={setFormOpen}>
+                <DrawerContent aria-describedby={undefined} style={{ maxHeight: '92dvh' }}>
+                    <div className="no-sb mx-auto w-full max-w-sm px-4 pb-8" style={{ overflowY: 'auto', minHeight: 0 }}>
                         <DrawerHeader className="px-0">
-                            <DrawerTitle>{selectedAccount ? "Modifier le compte" : "Nouveau compte"}</DrawerTitle>
-                            <DrawerDescription>
-                                {selectedAccount 
-                                    ? "Modifiez le nom ou le solde initial de votre compte." 
-                                    : "Ajoutez un nouveau compte pour suivre vos dépenses."}
-                            </DrawerDescription>
+                            <DrawerTitle style={{ fontFamily: 'var(--serif)', fontSize: 25, fontWeight: 700, color: 'var(--ink)', textAlign: 'left' }}>{editing ? 'Modifier le compte' : 'Nouveau compte'}</DrawerTitle>
+                            <DrawerDescription style={{ font: '460 13px var(--sans)', color: 'var(--ink-muted)', textAlign: 'left' }}>Nom, type et solde de départ.</DrawerDescription>
                         </DrawerHeader>
                         <div className="py-4">
-                            <AccountForm 
-                                account={selectedAccount} 
-                                onSuccess={() => setIsDrawerOpen(false)} 
-                            />
+                            <AccountForm account={editing} onSuccess={() => setFormOpen(false)} onCancel={() => setFormOpen(false)} />
                         </div>
                     </div>
                 </DrawerContent>
             </Drawer>
 
-            {/* Confirmation de suppression */}
-            <AlertDialog open={!!accountToDelete} onOpenChange={(open) => !open && setAccountToDelete(null)}>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Supprimer le compte ?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            Êtes-vous sûr de vouloir supprimer le compte "{accountToDelete?.name}" ? 
-                            Cette action est irréversible.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel>Annuler</AlertDialogCancel>
-                        <AlertDialogAction onClick={confirmDelete} className="bg-red-500 hover:bg-red-600">
-                            Supprimer
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
+            <ConfirmDialog
+                open={!!toDelete}
+                onOpenChange={(o) => !o && setToDelete(null)}
+                icon={Trash2}
+                danger
+                title="Supprimer le compte ?"
+                body={`« ${toDelete?.name} » sera définitivement supprimé. Cette action est irréversible.`}
+                confirmLabel="Supprimer"
+                onConfirm={confirmDelete}
+            />
+
+            <ConfirmDialog
+                open={!!blocked}
+                onOpenChange={(o) => !o && setBlocked(null)}
+                icon={AlertTriangle}
+                danger
+                single
+                title="Suppression impossible"
+                body={`Ce compte contient ${blocked?.count} transaction${blocked?.count > 1 ? 's' : ''}. Déplacez-les ou supprimez-les d'abord.`}
+                confirmLabel="Compris"
+            />
         </div>
     );
 }
