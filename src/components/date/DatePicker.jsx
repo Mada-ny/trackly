@@ -5,12 +5,14 @@ import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 
-export default function DatePicker({ 
-    id, 
-    value, 
+export default function DatePicker({
+    id,
+    value,
     onChange,
     minDate,
     maxDate,
+    placeholder = "Sélectionner une date",
+    style,
 }) {
     const [open, setOpen] = useState(false);
 
@@ -30,8 +32,9 @@ export default function DatePicker({
                     id={id}
                     variant="outline"
                     className="w-full justify-between font-normal"
+                    style={style}
                 >
-                    {value ? value.toLocaleDateString() : "Sélectionner une date"}
+                    <span className="truncate">{value ? value.toLocaleDateString() : placeholder}</span>
                     <ChevronDown />
                 </Button>
             </PopoverTrigger>

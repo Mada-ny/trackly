@@ -255,7 +255,6 @@ function ComboboxChip({
 
 function ComboboxChipsInput({
   className,
-  children,
   ...props
 }) {
   return (

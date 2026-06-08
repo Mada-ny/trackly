@@ -14,9 +14,11 @@ export function useFilteredTransactions(enrichedTransactions, filters, sortBy = 
         }
     
         if (filters.type === 'income') {
-            filtered = filtered.filter(t => t.isIncome);
+            filtered = filtered.filter(t => t.isIncome && !t.isTransfer);
         } else if (filters.type === 'expense') {
-            filtered = filtered.filter(t => !t.isIncome);
+            filtered = filtered.filter(t => !t.isIncome && !t.isTransfer);
+        } else if (filters.type === 'transfer') {
+            filtered = filtered.filter(t => t.isTransfer);
         }
     
         if (filters.dateRange.start || filters.dateRange.end) {

@@ -1,283 +1,236 @@
-import { 
-    WalletCards, 
-    Tags, 
-    Database, 
-    ChevronRight,
-    User,
-    Info,
-    Moon,
-    Sun,
-    Monitor,
-    Coins,
-    Palette,
-    Layers,
-    Shield,
-    Smartphone,
-    Heart,
-} from "lucide-react";
-import { Link } from "react-router-dom";
-import { cn } from "@/lib/utils";
-import { useTheme } from "@/components/ui/theme-provider";
-import { Button } from "@/components/ui/button";
-import { useCurrency } from "@/utils/number/CurrencyProvider";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
-    Drawer,
-    DrawerClose,
-    DrawerContent,
-    DrawerDescription,
-    DrawerFooter,
-    DrawerHeader,
-    DrawerTitle,
-} from "@/components/ui/drawer";
+    Wallet, ShoppingBag, Target, Repeat2, Sparkles, Bell, ArrowLeftRight, PiggyBank,
+    ChevronRight, Pencil, Check,
+} from "lucide-react";
+import { GlyphChip } from "@/components/ui/glyph-chip";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { useAccounts, useCategories } from "@/utils/db/hooks";
+import { useSettings, updateSetting } from "@/utils/db/hooks/useSettings";
+import { useCurrency } from "@/utils/number/CurrencyProvider";
+import { useTheme } from "@/components/ui/theme-provider";
+import { hexA } from "@/utils/ui/colors";
 
-export default function SettingsPage() {
-    const { theme, setTheme } = useTheme();
-    const { currency, setCurrency, supportedCurrencies } = useCurrency();
-    const [isAboutOpen, setIsAboutOpen] = useState(false);
+const THEME_OPTIONS = [
+    { value: "light", label: "Clair" },
+    { value: "dark", label: "Sombre" },
+    { value: "system", label: "Système" },
+];
 
-    const sections = [
-        {
-            title: "Organisation",
-            icon: Layers,
-            items: [
-                {
-                    label: "Mes Comptes",
-                    icon: WalletCards,
-                    description: "Gérer vos sources d'argent et soldes",
-                    to: "/settings/accounts",
-                    color: "text-blue-500",
-                    bg: "bg-blue-500/10"
-                },
-                {
-                    label: "Mes Catégories",
-                    icon: Tags,
-                    description: "Budgets et types de transactions",
-                    to: "/settings/categories",
-                    color: "text-purple-500",
-                    bg: "bg-purple-500/10"
-                }
-            ]
-        },
-        {
-            title: "Sécurité & Données",
-            icon: Shield,
-            items: [
-                {
-                    label: "Données & Sauvegarde",
-                    icon: Database,
-                    description: "Exporter ou importer vos données JSON",
-                    to: "/settings/data",
-                    color: "text-amber-500",
-                    bg: "bg-amber-500/10"
-                }
-            ]
-        },
-        {
-            title: "Application",
-            icon: Smartphone,
-            items: [
-                {
-                    label: "À propos",
-                    icon: Info,
-                    description: "Version 1.1.1 - Trackly",
-                    onClick: () => setIsAboutOpen(true),
-                    color: "text-slate-500",
-                    bg: "bg-slate-500/10"
-                }
-            ]
-        }
-    ];
+// ── Sub-components ────────────────────────────────────────────────────────
 
-    const themeOptions = [
-        { value: "light", label: "Clair", icon: Sun },
-        { value: "dark", label: "Sombre", icon: Moon },
-        { value: "system", label: "Système", icon: Monitor },
-    ];
+function SettingsRow({ icon, color, label, detail, badge, onClick }) {
+    return (
+        <button
+            onClick={onClick}
+            disabled={!onClick}
+            style={{
+                display: 'flex', alignItems: 'center', gap: 13, padding: '13px 0', width: '100%',
+                border: 'none', background: 'none', textAlign: 'left',
+                cursor: onClick ? 'pointer' : 'default',
+            }}
+        >
+            <GlyphChip icon={icon} color={color} size={36} radius={11} soft={0.14} />
+            <span style={{ flex: 1, font: '550 15px var(--sans)', color: 'var(--ink)' }}>{label}</span>
+            {detail && <span style={{ font: '480 13px var(--sans)', color: 'var(--ink-muted)' }}>{detail}</span>}
+            {badge && (
+                <span style={{
+                    font: '600 10.5px var(--sans)', color: 'var(--pine)', background: hexA('#3f6f63', 0.1),
+                    padding: '3px 8px', borderRadius: 99, letterSpacing: 0.2,
+                }}>{badge}</span>
+            )}
+            {onClick && <ChevronRight size={16} strokeWidth={1.9} style={{ color: 'var(--ink-muted)' }} />}
+        </button>
+    );
+}
+
+function Group({ title, children }) {
+    const items = Array.isArray(children) ? children.filter(Boolean) : [children];
+    return (
+        <div style={{ marginTop: 22 }}>
+            <div style={{ font: '500 12px var(--sans)', color: 'var(--ink-muted)', margin: '0 6px 8px', letterSpacing: 0.2 }}>{title}</div>
+            <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 22, padding: '2px 16px' }}>
+                {items.map((c, i) => (
+                    <div key={i} style={{ borderTop: i ? '1px solid var(--line)' : 'none' }}>{c}</div>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+function OptionSheet({ open, onClose, title, options, value, onSelect }) {
+    return (
+        <Drawer open={open} onOpenChange={(o) => !o && onClose()}>
+            <DrawerContent>
+                <div className="mx-auto w-full max-w-sm">
+                    <DrawerHeader className="text-center">
+                        <DrawerTitle style={{ fontFamily: 'var(--serif)', fontSize: 22 }}>{title}</DrawerTitle>
+                    </DrawerHeader>
+                    <div style={{ padding: '4px 20px 28px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        {options.map((opt) => {
+                            const active = opt.value === value;
+                            return (
+                                <button
+                                    key={opt.value}
+                                    onClick={() => { onSelect(opt.value); onClose(); }}
+                                    style={{
+                                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                        padding: '14px 16px', borderRadius: 16, cursor: 'pointer',
+                                        border: '1px solid ' + (active ? hexA('#3f6f63', 0.4) : 'var(--line)'),
+                                        background: active ? hexA('#3f6f63', 0.08) : 'var(--surface)',
+                                        font: '600 14.5px var(--sans)', color: 'var(--ink)',
+                                    }}
+                                >
+                                    <span>{opt.label}</span>
+                                    {active && <Check size={18} strokeWidth={2.4} style={{ color: 'var(--pine)' }} />}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+            </DrawerContent>
+        </Drawer>
+    );
+}
+
+function EditNameSheet({ open, onClose, initialName }) {
+    const [name, setName] = useState(initialName || '');
+
+    // Resynchronise le champ avec le nom courant à chaque ouverture
+    // (pattern "ajuster l'état pendant le rendu" — pas de useEffect, pas de re-render en cascade)
+    const [prevOpen, setPrevOpen] = useState(open);
+    if (open !== prevOpen) {
+        setPrevOpen(open);
+        if (open) setName(initialName || '');
+    }
+    const valid = name.trim().length >= 2;
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (!valid) return;
+        await updateSetting('userName', name.trim());
+        onClose();
+    };
 
     return (
-        <div className="flex flex-col h-screen bg-background">
-            {/* En-tête */}
-            <div className="shrink-0 bg-background/80 backdrop-blur-md border-b border-border/50 sticky top-0 z-30">
-                <div className="px-4 pt-6 pb-4 space-y-2">
-                    <h1 className="text-2xl font-black tracking-tight text-foreground">
-                        Paramètres
-                    </h1>
-                    <p className="text-xs font-medium text-muted-foreground">
-                        Configuration de votre espace
-                    </p>
+        <Drawer open={open} onOpenChange={(o) => !o && onClose()}>
+            <DrawerContent>
+                <div className="mx-auto w-full max-w-sm">
+                    <DrawerHeader className="text-center">
+                        <DrawerTitle style={{ fontFamily: 'var(--serif)', fontSize: 22 }}>Votre nom</DrawerTitle>
+                        <DrawerDescription>Comment souhaitez-vous qu&apos;on vous appelle ?</DrawerDescription>
+                    </DrawerHeader>
+                    <form onSubmit={handleSubmit} style={{ padding: '4px 20px 28px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+                        <Input
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                            placeholder="Votre prénom"
+                            autoFocus
+                            className="h-12 rounded-2xl text-base text-center"
+                        />
+                        <Button type="submit" disabled={!valid} className="w-full h-12 rounded-2xl font-bold">
+                            Enregistrer
+                        </Button>
+                    </form>
                 </div>
+            </DrawerContent>
+        </Drawer>
+    );
+}
+
+// ── Page ──────────────────────────────────────────────────────────────────
+
+export default function SettingsPage() {
+    const navigate = useNavigate();
+    const accounts = useAccounts();
+    const categories = useCategories();
+    const settings = useSettings();
+    const { currency, setCurrency, supportedCurrencies } = useCurrency();
+    const { theme, setTheme } = useTheme();
+
+    const [editingName, setEditingName] = useState(false);
+    const [currencySheetOpen, setCurrencySheetOpen] = useState(false);
+    const [themeSheetOpen, setThemeSheetOpen] = useState(false);
+
+    const currencyMeta = supportedCurrencies.find((c) => c.code === currency);
+    const themeLabel = THEME_OPTIONS.find((t) => t.value === theme)?.label || 'Système';
+
+    const visibleCategories = categories.filter((c) => c.name !== 'Transfert');
+    const userName = settings?.userName;
+    const initials = userName ? userName.trim().slice(0, 2).toUpperCase() : 'TR';
+
+    return (
+        <div style={{ padding: '0 20px 124px' }}>
+            <div style={{ padding: '8px 0 16px' }}>
+                <h1 style={{ fontFamily: 'var(--serif)', fontSize: 34, color: 'var(--ink)', margin: 0, lineHeight: 1 }}>Réglages</h1>
             </div>
 
-            {/* Contenu */}
-            <div className="grow overflow-y-auto no-scrollbar pb-24">
-                <div className="p-4 space-y-8 max-w-2xl mx-auto">
-                    
-                    {/* Sélecteur de Devise */}
-                    <div className="space-y-3">
-                        <div className="flex items-center gap-2 px-1">
-                            <Coins className="w-3 h-3 text-muted-foreground" />
-                            <h2 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                                Devise principale
-                            </h2>
-                        </div>
-                        <div className="flex p-1 gap-1 bg-muted/50 rounded-2xl border border-border/50 backdrop-blur-sm">
-                            {supportedCurrencies.map((opt) => (
-                                <button
-                                    key={opt.code}
-                                    onClick={() => setCurrency(opt.code)}
-                                    className={cn(
-                                        "flex-1 flex flex-col items-center gap-1 py-3 rounded-xl transition-all",
-                                        currency === opt.code 
-                                            ? "bg-background text-primary shadow-sm ring-1 ring-border/50" 
-                                            : "text-muted-foreground hover:text-foreground"
-                                    )}
-                                >
-                                    <span className="text-sm font-black">{opt.symbol}</span>
-                                    <span className="text-[9px] font-bold uppercase tracking-tighter">
-                                        {opt.code}
-                                    </span>
-                                </button>
-                            ))}
-                        </div>
+            {/* profil */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 15, background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 24, padding: 16 }}>
+                <div style={{
+                    width: 56, height: 56, borderRadius: 18, background: 'linear-gradient(150deg,#3f6f63,#2a4a42)',
+                    color: '#f4f1e8', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontFamily: 'var(--serif)', fontSize: 24, flexShrink: 0,
+                }}>{initials}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontFamily: 'var(--serif)', fontSize: 21, color: 'var(--ink)', lineHeight: 1.1 }}>
+                        {userName || 'Bienvenue'}
                     </div>
-
-                    {/* Sélecteur de Thème */}
-                    <div className="space-y-3">
-                        <div className="flex items-center gap-2 px-1">
-                            <Palette className="w-3 h-3 text-muted-foreground" />
-                            <h2 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                                Apparence
-                            </h2>
-                        </div>
-                        <div className="flex p-1 gap-1 bg-muted/50 rounded-2xl border border-border/50 backdrop-blur-sm">
-                            {themeOptions.map((option) => (
-                                <button
-                                    key={option.value}
-                                    onClick={() => setTheme(option.value)}
-                                    className={cn(
-                                        "flex-1 flex flex-col items-center gap-1.5 py-3 rounded-xl transition-all",
-                                        theme === option.value 
-                                            ? "bg-background text-primary shadow-sm ring-1 ring-border/50" 
-                                            : "text-muted-foreground hover:text-foreground"
-                                    )}
-                                >
-                                    <option.icon className="w-5 h-5" />
-                                    <span className="text-[10px] font-bold uppercase tracking-tighter">
-                                        {option.label}
-                                    </span>
-                                </button>
-                            ))}
-                        </div>
+                    <div style={{ font: '480 12.5px var(--sans)', color: 'var(--ink-muted)', marginTop: 3 }}>
+                        {accounts.length} compte{accounts.length > 1 ? 's' : ''} · {currencyMeta?.label || currency}
                     </div>
-
-                    {sections.map((section, idx) => (
-                        <div key={idx} className="space-y-3">
-                            <div className="flex items-center gap-2 px-1">
-                                <section.icon className="w-3 h-3 text-muted-foreground" />
-                                <h2 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                                    {section.title}
-                                </h2>
-                            </div>
-                            <div className="grid gap-2">
-                                {section.items.map((item, itemIdx) => {
-                                    const content = (
-                                        <>
-                                            <div className={cn("p-2 rounded-xl shrink-0", item.bg, item.color)}>
-                                                <item.icon className="w-5 h-5" />
-                                            </div>
-                                            <div className="grow min-w-0">
-                                                <p className="text-sm font-bold text-foreground leading-none mb-1">
-                                                    {item.label}
-                                                </p>
-                                                <p className="text-[10px] text-muted-foreground truncate">
-                                                    {item.description}
-                                                </p>
-                                            </div>
-                                            {item.to && <ChevronRight className="w-4 h-4 text-muted-foreground/50 shrink-0" />}
-                                        </>
-                                    );
-
-                                    if (item.onClick) {
-                                        return (
-                                            <button
-                                                key={itemIdx}
-                                                onClick={item.onClick}
-                                                className="flex items-center gap-4 p-3 rounded-2xl border border-border/50 bg-card/50 backdrop-blur-sm active:scale-[0.98] transition-all text-left w-full"
-                                            >
-                                                {content}
-                                            </button>
-                                        );
-                                    }
-
-                                    return (
-                                        <Link
-                                            key={itemIdx}
-                                            to={item.to}
-                                            state={{ from: "/settings" }}
-                                            className={cn(
-                                                "flex items-center gap-4 p-3 rounded-2xl border border-border/50 bg-card/50 backdrop-blur-sm active:scale-[0.98] transition-all",
-                                                item.disabled && "opacity-50 pointer-events-none"
-                                            )}
-                                        >
-                                            {content}
-                                        </Link>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    ))}
                 </div>
+                <button
+                    onClick={() => setEditingName(true)}
+                    aria-label="Modifier le nom"
+                    style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--ink-muted)', display: 'flex', padding: 6 }}
+                >
+                    <Pencil size={18} strokeWidth={1.8} />
+                </button>
             </div>
 
-            {/* Modal À Propos */}
-            <Drawer open={isAboutOpen} onOpenChange={setIsAboutOpen}>
-                <DrawerContent>
-                    <div className="mx-auto w-full max-w-sm">
-                        <DrawerHeader className="items-center text-center pt-8">
-                            <div className="w-20 h-20 bg-primary/10 rounded-3xl flex items-center justify-center mb-4 shadow-inner">
-                                <img src="/logo.svg" alt="Trackly Logo" className="w-12 h-12" />
-                            </div>
-                            <DrawerTitle className="text-2xl font-black tracking-[0.2em] uppercase">Trackly</DrawerTitle>
-                            <DrawerDescription className="text-xs font-bold uppercase tracking-widest text-primary/60">Version 1.1.1</DrawerDescription>
-                        </DrawerHeader>
-                        
-                        <div className="p-6 space-y-6">
-                            <p className="text-sm text-center leading-relaxed text-muted-foreground font-medium">
-                                Trackly est une application de gestion de budget <span className="font-bold text-primary/80">Local-First</span>. 
-                                Vos données ne quittent jamais votre appareil, garantissant une confidentialité totale.
-                            </p>
+            <Group title="Configuration">
+                <SettingsRow icon={Wallet} color="#3f6f63" label="Comptes" detail={String(accounts.length)} onClick={() => navigate('/settings/accounts')} />
+                <SettingsRow icon={ShoppingBag} color="#b4623f" label="Catégories" detail={String(visibleCategories.length)} onClick={() => navigate('/settings/categories')} />
+                <SettingsRow icon={Target} color="#b08a4f" label="Budgets & objectifs" badge="Bientôt" />
+            </Group>
 
-                            <div className="grid gap-3">
-                                <div className="flex items-center gap-4 p-4 rounded-2xl bg-muted/30 border border-border/50">
-                                    <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-600">
-                                        <Shield className="w-5 h-5" />
-                                    </div>
-                                    <div>
-                                        <p className="text-xs font-bold uppercase tracking-tight">100% Hors-ligne</p>
-                                        <p className="text-[10px] text-muted-foreground">Données stockées dans IndexedDB</p>
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-4 p-4 rounded-2xl bg-muted/30 border border-border/50">
-                                    <div className="p-2 rounded-xl bg-red-500/10 text-red-600">
-                                        <Heart className="w-5 h-5" />
-                                    </div>
-                                    <div>
-                                        <p className="text-xs font-bold uppercase tracking-tight">Open Source</p>
-                                        <p className="text-[10px] text-muted-foreground">Créé avec passion par Madany Doumbia</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+            <Group title="Préférences">
+                <SettingsRow icon={Repeat2} color="#5b76b0" label="Devise" detail={currencyMeta?.symbol || currency} onClick={() => setCurrencySheetOpen(true)} />
+                <SettingsRow icon={Sparkles} color="#8c6a9e" label="Apparence" detail={themeLabel} onClick={() => setThemeSheetOpen(true)} />
+                <SettingsRow icon={Bell} color="#b06a7a" label="Rappels quotidiens" badge="Bientôt" />
+            </Group>
 
-                        <DrawerFooter className="pt-2 pb-10">
-                            <DrawerClose asChild>
-                                <Button variant="outline" className="w-full rounded-2xl h-12 font-bold uppercase tracking-widest text-xs">Fermer</Button>
-                            </DrawerClose>
-                        </DrawerFooter>
-                    </div>
-                </DrawerContent>
-            </Drawer>
+            <Group title="Données">
+                <SettingsRow icon={ArrowLeftRight} color="#4f8a86" label="Importer / Exporter" onClick={() => navigate('/settings/data')} />
+                <SettingsRow icon={PiggyBank} color="#3f6f63" label="Sauvegarde cloud" badge="Bientôt" />
+            </Group>
+
+            <div style={{ textAlign: 'center', marginTop: 30, color: 'var(--ink-muted)' }}>
+                <div style={{ fontFamily: 'var(--serif)', fontSize: 20, color: 'var(--ink-soft)' }}>Trackly</div>
+                <div style={{ font: '460 11.5px var(--sans)', marginTop: 4 }}>Version 2.0 · 100% hors‑ligne</div>
+            </div>
+
+            <OptionSheet
+                open={currencySheetOpen}
+                onClose={() => setCurrencySheetOpen(false)}
+                title="Devise principale"
+                value={currency}
+                onSelect={setCurrency}
+                options={supportedCurrencies.map((c) => ({ value: c.code, label: `${c.label} (${c.symbol})` }))}
+            />
+            <OptionSheet
+                open={themeSheetOpen}
+                onClose={() => setThemeSheetOpen(false)}
+                title="Apparence"
+                value={theme}
+                onSelect={setTheme}
+                options={THEME_OPTIONS}
+            />
+            <EditNameSheet open={editingName} onClose={() => setEditingName(false)} initialName={userName} />
         </div>
     );
 }

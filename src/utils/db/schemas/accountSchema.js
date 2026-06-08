@@ -7,4 +7,7 @@ export const accountSchema = z.object({
     required_error: "Le solde initial est requis",
     invalid_type_error: "Le solde doit être un nombre",
   }),
+  kind: z.string().optional().nullable(),
+  glyph: z.string().optional().nullable(),
+  color: z.string().optional().nullable(),
 });

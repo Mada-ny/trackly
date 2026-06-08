@@ -24,7 +24,7 @@ export default function DesktopNav() {
                 {mainNavLinks.map((link) => (
                     <Tooltip key={link.to}>
                         <TooltipTrigger asChild>
-                            <NavLink 
+                            <NavLink
                                 to={link.to}
                                 id={`nav-${link.to === '/' ? 'dashboard' : link.to.replace('/', '')}`}
                                 className={navLinkClass}
@@ -43,7 +43,7 @@ export default function DesktopNav() {
                 <div className="pb-4">
                     <Tooltip>
                         <TooltipTrigger asChild>
-                            <NavLink 
+                            <NavLink
                                 to={settingsLink.to}
                                 id="nav-settings"
                                 className={navLinkClass}

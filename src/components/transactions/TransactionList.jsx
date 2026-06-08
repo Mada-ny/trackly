@@ -2,7 +2,6 @@ import { Badge } from "../ui/badge";
 import { getRelativeDate } from "@/utils/date/getRelativeDate";
 import { TrendingUp, TrendingDown } from "lucide-react";
 import { Card, CardContent } from "../ui/card";
-import { useCurrency } from "@/utils/number/CurrencyProvider";
 import { AmountDisplay } from "../ui/amount-display";
 import { cn } from "@/lib/utils";
 
@@ -10,8 +9,6 @@ export default function TransactionList({
     transactions = [],
     variant = "mobile"
 }) {
-    const { formatCurrency } = useCurrency();
-
     if (variant === "mobile") {
         return (
             <>

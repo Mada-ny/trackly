@@ -1,294 +1,194 @@
-import { BackHeader } from "@/components/navigation/BackHeader";
-import {
-    Breadcrumb,
-    BreadcrumbItem,
-    BreadcrumbLink,
-    BreadcrumbList,
-    BreadcrumbPage,
-    BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
-import { Link } from "react-router-dom";
+import { useState, useDeferredValue } from "react";
+import { useNavigate } from "react-router-dom";
+import { ChevronLeft, Plus, Search, X, Pencil, Trash2, AlertTriangle, TrendingDown, TrendingUp } from "lucide-react";
 import { useCategories } from "@/utils/db/hooks";
-import { Button } from "@/components/ui/button";
-import { Plus, Edit2, Trash2, Tag, TrendingDown, TrendingUp, Search, X } from "lucide-react";
-import { useState } from "react";
-import { useDebounce } from "use-debounce";
-import { Input } from "@/components/ui/input";
-import { 
-    Drawer, 
-    DrawerContent, 
-    DrawerHeader, 
-    DrawerTitle, 
-    DrawerDescription 
-} from "@/components/ui/drawer";
+import { GlyphChip } from "@/components/ui/glyph-chip";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
 import CategoryForm from "@/components/categories/CategoryForm";
+import { getCategoryVisuals } from "@/utils/ui/iconMap";
+import { useCurrency } from "@/utils/number/CurrencyProvider";
 import { db } from "@/utils/db/schema";
 import { toast } from "sonner";
-import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { cn } from "@/lib/utils";
-import { useCurrency } from "@/utils/number/CurrencyProvider";
+
+const iconBtn = {
+    width: 38, height: 38, borderRadius: 12, border: 'none', background: 'transparent', cursor: 'pointer',
+    color: 'var(--ink-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+};
 
 export default function CategoriesManagementPage() {
+    const navigate = useNavigate();
     const categories = useCategories();
-    const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-    const [selectedCategory, setSelectedCategory] = useState(null);
-    const [categoryToDelete, setCategoryToDelete] = useState(null);
+    const { formatCurrency } = useCurrency();
 
-    // État de recherche local
-    const [searchQuery, setSearchQuery] = useState("");
-    const [debouncedSearchQuery] = useDebounce(searchQuery, 300);
+    const [query, setQuery] = useState("");
+    const deferredQuery = useDeferredValue(query);
+    const [formOpen, setFormOpen] = useState(false);
+    const [editing, setEditing] = useState(null);
+    const [toDelete, setToDelete] = useState(null);
+    const [blocked, setBlocked] = useState(null);
 
-    const handleAdd = () => {
-        setSelectedCategory(null);
-        setIsDrawerOpen(true);
-    };
+    const filtered = categories.filter((c) => c.name !== "Transfert" && c.name.toLowerCase().includes(deferredQuery.toLowerCase()));
+    const expense = filtered.filter((c) => c.type === "expense");
+    const income = filtered.filter((c) => c.type === "income");
+    const hasResults = expense.length > 0 || income.length > 0;
 
-    const handleEdit = (category) => {
-        setSelectedCategory(category);
-        setIsDrawerOpen(true);
-    };
+    const openAdd = () => { setEditing(null); setFormOpen(true); };
+    const openEdit = (category) => { setEditing(category); setFormOpen(true); };
 
-    const handleDeleteClick = async (category) => {
-        if (category.name === "Transfert") {
-            toast.error("Cette catégorie système ne peut pas être supprimée.");
-            return;
-        }
-        
+    const askDelete = async (category) => {
         const count = await db.transactions.where("categoryId").equals(category.id).count();
-        if (count > 0) {
-            toast.error(`Impossible de supprimer : ${count} transactions utilisent cette catégorie.`);
-            return;
-        }
-        setCategoryToDelete(category);
+        if (count > 0) setBlocked({ category, count });
+        else setToDelete(category);
     };
 
     const confirmDelete = async () => {
-        if (!categoryToDelete) return;
+        if (!toDelete) return;
         try {
-            await db.categories.delete(categoryToDelete.id);
+            await db.categories.delete(toDelete.id);
             toast.success("Catégorie supprimée");
-            setCategoryToDelete(null);
+            setToDelete(null);
         } catch (error) {
             toast.error("Erreur lors de la suppression");
             console.error(error);
         }
     };
 
-    // Filtrage des catégories
-    const query = debouncedSearchQuery.toLowerCase();
-    const filteredCategories = categories.filter(c => 
-        c.name.toLowerCase().includes(query) && c.name !== "Transfert"
-    );
-
-    const expenseCategories = filteredCategories.filter(c => c.type === "expense");
-    const incomeCategories = filteredCategories.filter(c => c.type === "income");
-
-    const hasResults = expenseCategories.length > 0 || incomeCategories.length > 0;
-
     return (
-        <div className="flex flex-col h-screen bg-background">
-            <BackHeader 
-                title="Mes catégories" 
-                description="Organisez vos types de transactions"
-                fallback="/settings" 
-                action={
-                    <Button 
-                        onClick={handleAdd} 
-                        variant="ghost" 
-                        size="icon" 
-                        className="rounded-full h-9 w-9"
-                    >
-                        <Plus className="w-6 h-6 text-foreground" />
-                    </Button>
-                }
-            />
-            
-            <div className="px-4 py-3 shrink-0 space-y-4">
-                <Breadcrumb>
-                    <BreadcrumbList>
-                        <BreadcrumbItem>
-                            <BreadcrumbLink asChild>
-                                <Link to="/settings">Paramètres</Link>
-                            </BreadcrumbLink>
-                        </BreadcrumbItem>
-                        <BreadcrumbSeparator />
-                        <BreadcrumbItem>
-                            <BreadcrumbPage>Mes catégories</BreadcrumbPage>
-                        </BreadcrumbItem>
-                    </BreadcrumbList>
-                </Breadcrumb>
+        <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100dvh' }}>
+            <div style={{ flexShrink: 0, padding: '56px 20px 14px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                    <button onClick={() => navigate('/settings')} aria-label="Retour" style={{
+                        width: 40, height: 40, borderRadius: 13, border: '1px solid var(--line)', background: 'var(--surface)',
+                        color: 'var(--ink)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+                    }}><ChevronLeft size={20} strokeWidth={2} /></button>
+                    <button onClick={openAdd} style={{
+                        height: 40, padding: '0 15px 0 12px', borderRadius: 13, border: 'none', background: 'var(--pine)', color: '#fff',
+                        display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', font: '600 13.5px var(--sans)',
+                        boxShadow: '0 6px 16px rgba(44,84,72,0.26)',
+                    }}><Plus size={17} strokeWidth={2.4} /> Ajouter</button>
+                </div>
+                <h1 style={{ fontFamily: 'var(--serif)', fontSize: 32, color: 'var(--ink)', margin: 0, lineHeight: 1 }}>Mes catégories</h1>
+                <div style={{ font: '480 13px var(--sans)', color: 'var(--ink-muted)', marginTop: 7 }}>
+                    {filtered.length} catégorie{filtered.length > 1 ? 's' : ''} · dépenses & revenus
+                </div>
+            </div>
 
-                {/* Barre de recherche */}
-                <div className="relative group">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
-                    <Input
-                        type="text"
-                        placeholder="Rechercher une catégorie..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full pl-10 pr-10 h-11 rounded-2xl border-none bg-muted/50 focus-visible:ring-2 focus-visible:ring-primary/20 transition-all text-base"
+            <div className="no-sb" style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '4px 20px 40px' }}>
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center', marginBottom: 18 }}>
+                    <span style={{ position: 'absolute', left: 14, color: 'var(--ink-muted)', display: 'flex' }}><Search size={18} strokeWidth={1.8} /></span>
+                    <input
+                        value={query}
+                        onChange={(e) => setQuery(e.target.value)}
+                        placeholder="Rechercher une catégorie…"
+                        style={{
+                            width: '100%', boxSizing: 'border-box', height: 46, paddingLeft: 42, paddingRight: 38, borderRadius: 15,
+                            border: '1px solid var(--line)', background: 'var(--surface)', font: '500 14.5px var(--sans)', color: 'var(--ink)', outline: 'none',
+                        }}
                     />
-                    {searchQuery && (
-                        <button
-                            onClick={() => setSearchQuery('')}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-muted rounded-full transition-colors"
-                        >
-                            <X className="h-4 w-4 text-muted-foreground" />
+                    {query && (
+                        <button onClick={() => setQuery('')} style={{ position: 'absolute', right: 12, border: 'none', background: 'none', color: 'var(--ink-muted)', cursor: 'pointer', display: 'flex', padding: 4 }}>
+                            <X size={16} strokeWidth={2} />
                         </button>
                     )}
                 </div>
+
+                {expense.length > 0 && (
+                    <div style={{ marginBottom: 24 }}>
+                        <GroupLabel icon={TrendingDown} color="#b4623f">Dépenses</GroupLabel>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+                            {expense.map((category) => (
+                                <CategoryRow key={category.id} category={category} formatCurrency={formatCurrency} onEdit={openEdit} onDelete={askDelete} />
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {income.length > 0 && (
+                    <div>
+                        <GroupLabel icon={TrendingUp} color="#3f6f63">Revenus</GroupLabel>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+                            {income.map((category) => (
+                                <CategoryRow key={category.id} category={category} formatCurrency={formatCurrency} onEdit={openEdit} onDelete={askDelete} />
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {!hasResults && (
+                    <div style={{ textAlign: 'center', padding: '50px 20px', color: 'var(--ink-muted)', font: '460 14px var(--sans)', fontStyle: 'italic' }}>
+                        {query ? 'Aucune catégorie ne correspond.' : 'Aucune catégorie configurée.'}
+                    </div>
+                )}
             </div>
 
-            <div className="grow overflow-y-auto no-scrollbar p-4 pb-24">
-                <div className="space-y-8 max-w-2xl mx-auto">
-                    
-                    {!hasResults && (
-                        <div className="text-center py-12">
-                            <p className="text-muted-foreground italic">
-                                {searchQuery ? "Aucune catégorie ne correspond à votre recherche." : "Aucune catégorie configurée."}
-                            </p>
-                        </div>
-                    )}
-
-                    {/* Dépenses */}
-                    {expenseCategories.length > 0 && (
-                        <div className="space-y-3">
-                            <div className="flex items-center gap-2 px-1">
-                                <TrendingDown className="w-4 h-4 text-red-500" />
-                                <h2 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                                    Dépenses
-                                </h2>
-                            </div>
-                            <div className="grid gap-2">
-                                {expenseCategories.map(category => (
-                                    <CategoryItem 
-                                        key={category.id} 
-                                        category={category} 
-                                        onEdit={handleEdit} 
-                                        onDelete={handleDeleteClick} 
-                                    />
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Revenus */}
-                    {incomeCategories.length > 0 && (
-                        <div className="space-y-3">
-                            <div className="flex items-center gap-2 px-1">
-                                <TrendingUp className="w-4 h-4 text-emerald-500" />
-                                <h2 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                                    Revenus
-                                </h2>
-                            </div>
-                            <div className="grid gap-2">
-                                {incomeCategories.map(category => (
-                                    <CategoryItem 
-                                        key={category.id} 
-                                        category={category} 
-                                        onEdit={handleEdit} 
-                                        onDelete={handleDeleteClick} 
-                                    />
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
-                </div>
-            </div>
-
-            <Drawer open={isDrawerOpen} onOpenChange={setIsDrawerOpen}>
-                <DrawerContent>
-                    <div className="max-w-2xl mx-auto w-full px-4 pb-8">
+            <Drawer open={formOpen} onOpenChange={setFormOpen}>
+                <DrawerContent aria-describedby={undefined} style={{ maxHeight: '92dvh' }}>
+                    <div className="no-sb mx-auto w-full max-w-sm px-4 pb-8" style={{ overflowY: 'auto', minHeight: 0 }}>
                         <DrawerHeader className="px-0">
-                            <DrawerTitle>{selectedCategory ? "Modifier la catégorie" : "Nouvelle catégorie"}</DrawerTitle>
-                            <DrawerDescription>
-                                Personnalisez vos catégories pour mieux analyser vos dépenses.
-                            </DrawerDescription>
+                            <DrawerTitle style={{ fontFamily: 'var(--serif)', fontSize: 25, fontWeight: 700, color: 'var(--ink)', textAlign: 'left' }}>{editing ? 'Modifier la catégorie' : 'Nouvelle catégorie'}</DrawerTitle>
+                            <DrawerDescription style={{ font: '460 13px var(--sans)', color: 'var(--ink-muted)', textAlign: 'left' }}>Personnalisez pour mieux analyser vos dépenses.</DrawerDescription>
                         </DrawerHeader>
                         <div className="py-4">
-                            <CategoryForm 
-                                category={selectedCategory} 
-                                onSuccess={() => setIsDrawerOpen(false)} 
-                            />
+                            <CategoryForm category={editing} onSuccess={() => setFormOpen(false)} onCancel={() => setFormOpen(false)} />
                         </div>
                     </div>
                 </DrawerContent>
             </Drawer>
 
-            <AlertDialog open={!!categoryToDelete} onOpenChange={(open) => !open && setCategoryToDelete(null)}>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Supprimer la catégorie ?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            Voulez-vous vraiment supprimer "{categoryToDelete?.name}" ?
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel>Annuler</AlertDialogCancel>
-                        <AlertDialogAction onClick={confirmDelete} className="bg-red-500 hover:bg-red-600">
-                            Supprimer
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
+            <ConfirmDialog
+                open={!!toDelete}
+                onOpenChange={(o) => !o && setToDelete(null)}
+                icon={Trash2}
+                danger
+                title="Supprimer la catégorie ?"
+                body={`« ${toDelete?.name} » sera définitivement supprimée.`}
+                confirmLabel="Supprimer"
+                onConfirm={confirmDelete}
+            />
+
+            <ConfirmDialog
+                open={!!blocked}
+                onOpenChange={(o) => !o && setBlocked(null)}
+                icon={AlertTriangle}
+                danger
+                single
+                title="Suppression impossible"
+                body={`${blocked?.count} transaction${blocked?.count > 1 ? 's' : ''} utilise${blocked?.count > 1 ? 'nt' : ''} cette catégorie. Déplacez-les ou supprimez-les d'abord.`}
+                confirmLabel="Compris"
+            />
         </div>
     );
 }
 
-function CategoryItem({ category, onEdit, onDelete }) {
-    const { formatCurrency } = useCurrency();
+function GroupLabel({ icon: Icon, color, children }) {
     return (
-        <div className="flex items-center justify-between p-3 rounded-2xl border border-border/50 bg-card/50 backdrop-blur-sm">
-            <div className="flex items-center gap-3">
-                <div className={cn(
-                    "p-2 rounded-xl shrink-0",
-                    category.type === "expense" ? "bg-red-500/10 text-red-500" : "bg-emerald-500/10 text-emerald-500"
-                )}>
-                    <Tag className="w-4 h-4" />
-                </div>
-                <div className="min-w-0">
-                    <p className="text-sm font-bold text-foreground leading-tight truncate">
-                        {category.name}
-                    </p>
-                    {category.monthlyLimit && (
-                        <p className="text-[10px] text-muted-foreground">
-                            Limite: {formatCurrency(category.monthlyLimit)}/mois
-                        </p>
-                    )}
-                </div>
-            </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 7, margin: '0 2px 11px' }}>
+            <span style={{ color, display: 'flex' }}><Icon size={15} strokeWidth={2} /></span>
+            <span style={{ font: '600 11px var(--sans)', color: 'var(--ink-muted)', letterSpacing: 1, textTransform: 'uppercase' }}>{children}</span>
+        </div>
+    );
+}
 
-            <div className="flex items-center gap-1">
-                <Button 
-                    variant="ghost" 
-                    size="icon-sm" 
-                    className="h-8 w-8 rounded-full text-muted-foreground"
-                    onClick={() => onEdit(category)}
-                >
-                    <Edit2 className="w-3.5 h-3.5" />
-                </Button>
-                <Button 
-                    variant="ghost" 
-                    size="icon-sm" 
-                    className={cn(
-                        "h-8 w-8 rounded-full text-red-500 hover:text-red-600 hover:bg-red-50",
-                        category.name === "Transfert" && "opacity-0 pointer-events-none"
-                    )}
-                    onClick={() => onDelete(category)}
-                >
-                    <Trash2 className="w-3.5 h-3.5" />
-                </Button>
+function CategoryRow({ category, formatCurrency, onEdit, onDelete }) {
+    const { icon, color } = getCategoryVisuals(category);
+    const isSystem = category.name === "Transfert";
+    return (
+        <div style={{
+            display: 'flex', alignItems: 'center', gap: 13, background: 'var(--surface)',
+            border: '1px solid var(--line)', borderRadius: 18, padding: '12px 12px 12px 13px',
+        }}>
+            <GlyphChip icon={icon} color={color} size={40} radius={13} soft={0.13} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ font: '650 14.5px var(--sans)', color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{category.name}</div>
+                {category.monthlyLimit ? (
+                    <div style={{ font: '500 11.5px var(--sans)', color: 'var(--ink-muted)', marginTop: 2 }}>Plafond {formatCurrency(category.monthlyLimit)}/mois</div>
+                ) : null}
             </div>
+            <button onClick={() => onEdit(category)} style={iconBtn}><Pencil size={16} strokeWidth={1.8} /></button>
+            {!isSystem && (
+                <button onClick={() => onDelete(category)} style={{ ...iconBtn, color: 'var(--clay)' }}><Trash2 size={16} strokeWidth={1.8} /></button>
+            )}
         </div>
     );
 }

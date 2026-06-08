@@ -9,4 +9,6 @@ export const categorySchema = z.object({
   monthlyLimit: z.number({
     invalid_type_error: "La limite doit être un nombre",
   }).optional().nullable(),
+  glyph: z.string().optional().nullable(),
+  color: z.string().optional().nullable(),
 });

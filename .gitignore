@@ -23,5 +23,10 @@ dist-ssr
 *.sln
 *.sw?
 
+trackly-revamp/
+
 .gemini/
+.claude/
+.playwright-mcp/
+
 context.json

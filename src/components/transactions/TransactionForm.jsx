@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { useMemo } from "react";
 import { Button } from "@/components/ui/button"
 import { Toggle } from "@/components/ui/toggle"
-import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field"
+import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import DatePicker from "../date/DatePicker";
@@ -141,8 +141,8 @@ export default function TransactionForm({
     }
 
     return (
-        <div className="w-full p-4 bg-background pb-24">
-            <p className="text-sm text-muted-foreground mb-6">
+        <div className="w-full p-4 bg-background pb-24 md:pb-8">
+            <p className="text-sm text-muted-foreground mb-8">
                 {mode === "create" 
                     ? "Ajoutez une nouvelle transaction (dépense ou revenu) à votre compte."
                     : "Modifiez les détails de votre transaction ci-dessous."
@@ -152,9 +152,9 @@ export default function TransactionForm({
             <form
                 id="transaction-form"
                 onSubmit={form.handleSubmit(onSubmit)}
-                className="space-y-6"
+                className="space-y-6 max-w-2xl mx-auto"
             >
-                <FieldGroup>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {/* Montant */}
                     <Controller
                         name="amount"
@@ -170,6 +170,7 @@ export default function TransactionForm({
                                     type="number"
                                     inputMode="decimal"
                                     placeholder="0.00"
+                                    className="h-11 md:h-10"
                                 />
                                 {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
                             </Field>
@@ -190,7 +191,7 @@ export default function TransactionForm({
                                     value={field.value}
                                     onValueChange={field.onChange}
                                 >
-                                    <SelectTrigger id="transaction-form-category">
+                                    <SelectTrigger id="transaction-form-category" className="h-11 md:h-10">
                                         <SelectValue placeholder="Choisissez une catégorie" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -211,37 +212,6 @@ export default function TransactionForm({
                         )}
                     />
 
-                    {/* Début de cycle financier (uniquement pour revenus) */}
-                    {selectedCategory?.type === 'income' && (
-                        <Controller
-                            name="isCycleStart"
-                            control={form.control}
-                            render={({ field }) => (
-                                <Toggle
-                                    pressed={field.value}
-                                    onPressedChange={field.onChange}
-                                    variant="outline"
-                                    className="w-full h-auto p-4 justify-start gap-4 rounded-2xl transition-all duration-200 border-border/50 data-[state=on]:bg-emerald-500/10 data-[state=on]:text-emerald-600 data-[state=on]:border-emerald-500/20"
-                                >
-                                    <div className={cn(
-                                        "w-10 h-10 rounded-xl flex items-center justify-center transition-colors",
-                                        field.value ? "bg-emerald-500/20" : "bg-muted"
-                                    )}>
-                                        <CalendarRange className="size-5" />
-                                    </div>
-                                    <div className="flex flex-col items-start gap-0.5 text-left">
-                                        <span className="text-sm font-black">
-                                            Début de mois financier
-                                        </span>
-                                        <span className="text-[10px] font-bold uppercase tracking-tight opacity-70">
-                                            Ajuste la période des rapports
-                                        </span>
-                                    </div>
-                                </Toggle>
-                            )}
-                        />
-                    )}
-
                     {/* Compte */}
                     <Controller
                         name="accountId"
@@ -256,7 +226,7 @@ export default function TransactionForm({
                                     value={field.value}
                                     onValueChange={field.onChange}
                                 >
-                                    <SelectTrigger id="transaction-form-account">
+                                    <SelectTrigger id="transaction-form-account" className="h-11 md:h-10">
                                         <SelectValue placeholder="Choisissez un compte" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -275,79 +245,115 @@ export default function TransactionForm({
                         )}
                     />
 
-                    {/* Date & Heure */}
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                    {/* Début de cycle financier (uniquement pour revenus) */}
+                    {selectedCategory?.type === 'income' ? (
                         <Controller
-                            name="date"
+                            name="isCycleStart"
                             control={form.control}
-                            render={({ field, fieldState }) => (
-                                <Field data-invalid={fieldState.invalid}>
-                                    <FieldLabel htmlFor="transaction-form-date">Date</FieldLabel>
-                                    <DatePicker
-                                        id="transaction-form-date"
-                                        value={field.value}
-                                        onChange={field.onChange}
-                                    />
-                                    {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
-                                </Field>
+                            render={({ field }) => (
+                                <div className="flex flex-col gap-2 pt-0 md:pt-6">
+                                    <Toggle
+                                        pressed={field.value}
+                                        onPressedChange={field.onChange}
+                                        variant="outline"
+                                        className="w-full h-auto p-3 justify-start gap-4 rounded-xl transition-all duration-200 border-border/50 data-[state=on]:bg-emerald-500/10 data-[state=on]:text-emerald-600 data-[state=on]:border-emerald-500/20"
+                                    >
+                                        <div className={cn(
+                                            "w-8 h-8 rounded-lg flex items-center justify-center transition-colors",
+                                            field.value ? "bg-emerald-500/20" : "bg-muted"
+                                        )}>
+                                            <CalendarRange className="size-4" />
+                                        </div>
+                                        <div className="flex flex-col items-start gap-0.5 text-left">
+                                            <span className="text-xs font-black">
+                                                Début de mois
+                                            </span>
+                                        </div>
+                                    </Toggle>
+                                </div>
                             )}
                         />
+                    ) : (
+                        <div className="hidden md:block" />
+                    )}
+
+                    {/* Date */}
+                    <Controller
+                        name="date"
+                        control={form.control}
+                        render={({ field, fieldState }) => (
+                            <Field data-invalid={fieldState.invalid}>
+                                <FieldLabel htmlFor="transaction-form-date">Date</FieldLabel>
+                                <DatePicker
+                                    id="transaction-form-date"
+                                    value={field.value}
+                                    onChange={field.onChange}
+                                />
+                                {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                            </Field>
+                        )}
+                    />
+
+                    {/* Heure */}
+                    <Controller
+                        name="time"
+                        control={form.control}
+                        render={({ field, fieldState }) => (
+                            <Field data-invalid={fieldState.invalid}>
+                                <FieldLabel htmlFor="transaction-form-time">Heure</FieldLabel>
+                                <Input
+                                    {...field}
+                                    id="transaction-form-time"
+                                    type="time"
+                                    className="h-11 md:h-10 text-sm"
+                                />
+                                {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                            </Field>
+                        )}
+                    />
+
+                    {/* Description */}
+                    <div className="md:col-span-2">
                         <Controller
-                            name="time"
+                            name="description"
                             control={form.control}
                             render={({ field, fieldState }) => (
                                 <Field data-invalid={fieldState.invalid}>
-                                    <FieldLabel htmlFor="transaction-form-time">Heure</FieldLabel>
+                                    <FieldLabel htmlFor="transaction-form-description">
+                                        Description
+                                    </FieldLabel>
                                     <Input
                                         {...field}
-                                        id="transaction-form-time"
-                                        type="time"
-                                        className="text-sm"
+                                        id="transaction-form-description"
+                                        placeholder="Ex: Burger chez Paul..."
+                                        className="h-11 md:h-10"
                                     />
                                     {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                                    <FieldDescription>Aidez-vous à mieux suivre vos dépenses.</FieldDescription>
                                 </Field>
                             )}
                         />
                     </div>
+                </div>
 
-                    {/* Description */}
-                    <Controller
-                        name="description"
-                        control={form.control}
-                        render={({ field, fieldState }) => (
-                            <Field data-invalid={fieldState.invalid}>
-                                <FieldLabel htmlFor="transaction-form-description">
-                                    Description
-                                </FieldLabel>
-                                <Input
-                                    {...field}
-                                    id="transaction-form-description"
-                                    placeholder="Ex: Burger chez Paul..."
-                                />
-                                {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
-                                <FieldDescription>Aidez-vous à mieux suivre vos dépenses.</FieldDescription>
-                            </Field>
-                        )}
-                    />
-                </FieldGroup>
+                <div className="mt-8 flex items-center justify-end gap-3 pt-4 border-t border-border/10">
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        className="text-muted-foreground"
+                        onClick={() => form.reset(getCreateDefaultValues())}
+                    >
+                        Réinitialiser
+                    </Button>
+                    <Button
+                        type="submit"
+                        className="px-8 rounded-xl font-black uppercase tracking-widest text-xs h-11"
+                        disabled={!form.formState.isValid || form.formState.isSubmitting}
+                    >
+                        {form.formState.isSubmitting ? "Enregistrement..." : mode === "create" ? "Ajouter" : "Enregistrer"}
+                    </Button>
+                </div>
             </form>
-
-            <div className="mt-6 flex items-center justify-end gap-3">
-                <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => form.reset(getCreateDefaultValues())}
-                >
-                    Réinitialiser
-                </Button>
-                <Button
-                    type="submit"
-                    form="transaction-form"
-                    disabled={!form.formState.isValid || form.formState.isSubmitting}
-                >
-                    {form.formState.isSubmitting ? "Enregistrement..." : mode === "create" ? "Ajouter" : "Enregistrer"}
-                </Button>
-            </div>
         </div>
     )
 }

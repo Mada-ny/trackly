@@ -1,49 +1,58 @@
-import { Outlet } from "react-router";
+import { Outlet, useLocation } from "react-router";
+import { Toaster } from "@/components/ui/sonner";
 import MobileNav from "@/components/navigation/MobileNav";
 import DesktopNav from "@/components/navigation/DesktopNav";
-import SplashScreen from "@/components/navigation/SplashScreen";
-import PageTransition from "@/components/navigation/PageTransition";
+import QuickAddSheet from "@/components/transactions/QuickAddSheet";
+import WelcomeNamePrompt from "@/components/settings/WelcomeNamePrompt";
 import { useState } from "react";
-import { useScrollDirection } from "@/utils/navigation/useScrollDirection";
 import { cn } from "@/lib/utils";
 
 export default function MainLayout() {
-    const desktopNavWidth = "md:w-20"; 
-    const scrollDirection = useScrollDirection();
-    const [showSplash, setShowSplash] = useState(() => {
-        return !sessionStorage.getItem("trackly-splash-shown");
-    });
+    const [quickAddOpen, setQuickAddOpen] = useState(false);
+    const { pathname } = useLocation();
+    const hideNav = /^\/settings\/(accounts|categories|data)(\/|$)/.test(pathname);
 
-    const handleSplashFinish = () => {
-        setShowSplash(false);
-        sessionStorage.setItem("trackly-splash-shown", "true");
-    };
+    // Quand la nav flottante + le FAB sont masqués, le toast n'a plus besoin de les éviter
+    const toastOffset = hideNav
+        ? 'calc(24px + env(safe-area-inset-bottom))'
+        : 'calc(100px + env(safe-area-inset-bottom))';
 
     return (
         <div className="min-h-dvh flex flex-col md:flex-row bg-background text-foreground overflow-x-hidden">
-            {showSplash && <SplashScreen onFinish={handleSplashFinish} />}
-
-            {/* Nav desktop */}
-            <aside className={`fixed left-0 top-0 h-screen z-50 hidden md:block ${desktopNavWidth}`}>
+            {/* Desktop sidebar */}
+            <aside className="fixed left-0 top-0 h-screen z-50 hidden md:block md:w-20">
                 <DesktopNav />
             </aside>
 
-            {/* Contenu principal avec transitions de page */}
-            <main className={`flex-1 w-full mx-auto max-w-[500px] md:max-w-full ${desktopNavWidth} md:pl-20 md:pb-4`}>
-                <PageTransition>
-                    <Outlet />
-                </PageTransition>
+            {/* Main content */}
+            <main className={cn(
+                "flex-1 w-full mx-auto transition-all duration-300",
+                "max-w-[500px] md:max-w-7xl",
+                "md:pb-4",
+                "px-0 md:pl-28 md:pr-8 lg:pl-32 lg:pr-12"
+            )}>
+                <Outlet />
             </main>
 
-            {/* Nav mobile (Floating Pill) */}
-            <footer className={cn(
-                "fixed bottom-0 left-0 right-0 z-50 md:hidden pointer-events-none transition-transform duration-500",
-                scrollDirection === "down" ? "translate-y-full" : "translate-y-0"
-            )}>
-                <div className="w-full mx-auto max-w-[500px] pointer-events-auto">
-                    <MobileNav />
-                </div>
-            </footer>
+            {/* Mobile nav */}
+            {!hideNav && (
+                <footer
+                    className="fixed bottom-0 left-0 right-0 z-50 md:hidden pointer-events-none"
+                    style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+                >
+                    <div className="w-full mx-auto max-w-[500px] pointer-events-auto">
+                        <MobileNav onAdd={() => setQuickAddOpen(true)} />
+                    </div>
+                </footer>
+            )}
+
+            <QuickAddSheet open={quickAddOpen} onOpenChange={setQuickAddOpen} />
+            <WelcomeNamePrompt />
+            <Toaster
+                position="bottom-center"
+                offset={{ bottom: toastOffset }}
+                mobileOffset={{ bottom: toastOffset }}
+            />
         </div>
-    )
+    );
 }

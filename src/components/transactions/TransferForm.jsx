@@ -4,7 +4,7 @@ import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button"
-import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field"
+import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import DatePicker from "../date/DatePicker";
@@ -166,34 +166,37 @@ export default function TransferForm({
     }
 
     return (
-        <div className="w-full p-4 bg-background pb-24">
-            <p className="text-sm text-muted-foreground mb-6">
-                Transférez de l'argent d'un compte à un autre en toute simplicité.
+        <div className="w-full p-4 bg-background pb-24 md:pb-8">
+            <p className="text-sm text-muted-foreground mb-8">
+                Transférez de l&apos;argent d&apos;un compte à un autre en toute simplicité.
             </p>
 
             <form
                 id="transfer-form"
                 onSubmit={form.handleSubmit(onSubmit)}
-                className="space-y-6"
+                className="space-y-6 max-w-2xl mx-auto"
             >
-                <FieldGroup>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {/* Montant */}
-                    <Controller
-                        name="amount"
-                        control={form.control}
-                        render={({ field, fieldState }) => (
-                            <Field data-invalid={fieldState.invalid}>
-                                <FieldLabel>Montant</FieldLabel>
-                                <Input
-                                    {...field}
-                                    type="number"
-                                    inputMode="decimal"
-                                    placeholder="0.00"
-                                />
-                                {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
-                            </Field>
-                        )}
-                    />
+                    <div className="md:col-span-2">
+                        <Controller
+                            name="amount"
+                            control={form.control}
+                            render={({ field, fieldState }) => (
+                                <Field data-invalid={fieldState.invalid}>
+                                    <FieldLabel>Montant</FieldLabel>
+                                    <Input
+                                        {...field}
+                                        type="number"
+                                        inputMode="decimal"
+                                        placeholder="0.00"
+                                        className="h-11 md:h-10"
+                                    />
+                                    {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                                </Field>
+                            )}
+                        />
+                    </div>
 
                     {/* Compte Source */}
                     <Controller
@@ -203,7 +206,7 @@ export default function TransferForm({
                             <Field data-invalid={fieldState.invalid}>
                                 <FieldLabel>De (Source)</FieldLabel>
                                 <Select value={field.value} onValueChange={field.onChange}>
-                                    <SelectTrigger>
+                                    <SelectTrigger className="h-11 md:h-10">
                                         <SelectValue placeholder="Choisir le compte source" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -227,7 +230,7 @@ export default function TransferForm({
                             <Field data-invalid={fieldState.invalid}>
                                 <FieldLabel>Vers (Destination)</FieldLabel>
                                 <Select value={field.value} onValueChange={field.onChange}>
-                                    <SelectTrigger>
+                                    <SelectTrigger className="h-11 md:h-10">
                                         <SelectValue placeholder="Choisir le compte destination" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -243,50 +246,52 @@ export default function TransferForm({
                         )}
                     />
 
-                    {/* Date & Heure */}
-                    <div className="grid grid-cols-2 gap-4">
-                        <Controller
-                            name="date"
-                            control={form.control}
-                            render={({ field, fieldState }) => (
-                                <Field data-invalid={fieldState.invalid}>
-                                    <FieldLabel>Date</FieldLabel>
-                                    <DatePicker value={field.value} onChange={field.onChange} />
-                                    {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
-                                </Field>
-                            )}
-                        />
-                        <Controller
-                            name="time"
-                            control={form.control}
-                            render={({ field, fieldState }) => (
-                                <Field data-invalid={fieldState.invalid}>
-                                    <FieldLabel>Heure</FieldLabel>
-                                    <Input {...field} type="time" />
-                                    {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
-                                </Field>
-                            )}
-                        />
-                    </div>
-                </FieldGroup>
-            </form>
+                    {/* Date */}
+                    <Controller
+                        name="date"
+                        control={form.control}
+                        render={({ field, fieldState }) => (
+                            <Field data-invalid={fieldState.invalid}>
+                                <FieldLabel>Date</FieldLabel>
+                                <DatePicker value={field.value} onChange={field.onChange} />
+                                {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                            </Field>
+                        )}
+                    />
 
-            <div className="mt-6 flex items-center justify-end gap-3">
-                <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => form.reset(getTransferDefaultValues())}
-                >
-                    Réinitialiser
-                </Button>
-                <Button
-                    type="submit"
-                    form="transfer-form"
-                    disabled={!form.formState.isValid || form.formState.isSubmitting}
-                >
-                    {form.formState.isSubmitting ? "Traitement..." : mode === "create" ? "Effectuer le virement" : "Enregistrer"}
-                </Button>
-            </div>
+                    {/* Heure */}
+                    <Controller
+                        name="time"
+                        control={form.control}
+                        render={({ field, fieldState }) => (
+                            <Field data-invalid={fieldState.invalid}>
+                                <FieldLabel>Heure</FieldLabel>
+                                <Input {...field} type="time" className="h-11 md:h-10" />
+                                {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                            </Field>
+                        )}
+                    />
+                </div>
+
+                <div className="mt-8 flex items-center justify-end gap-3 pt-4 border-t border-border/10">
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        className="text-muted-foreground"
+                        onClick={() => form.reset(getTransferDefaultValues())}
+                    >
+                        Réinitialiser
+                    </Button>
+                    <Button
+                        type="submit"
+                        form="transfer-form"
+                        className="px-8 rounded-xl font-black uppercase tracking-widest text-xs h-11"
+                        disabled={!form.formState.isValid || form.formState.isSubmitting}
+                    >
+                        {form.formState.isSubmitting ? "Traitement..." : mode === "create" ? "Effectuer le virement" : "Enregistrer"}
+                    </Button>
+                </div>
+            </form>
         </div>
     );
 }

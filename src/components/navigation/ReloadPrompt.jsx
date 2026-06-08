@@ -1,8 +1,6 @@
-import React from 'react'
 import { useRegisterSW } from 'virtual:pwa-register/react'
-import { Button } from '@/components/ui/button'
 import { RefreshCw, X, Sparkles } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { hexA } from '@/utils/ui/colors'
 
 /**
  * Composant pour gérer les notifications de mise à jour du Service Worker.
@@ -15,11 +13,9 @@ export default function ReloadPrompt() {
     updateServiceWorker,
   } = useRegisterSW({
     onRegistered(r) {
-      // eslint-disable-next-line no-console
       console.log('SW Registered: ' + r)
     },
     onRegisterError(error) {
-      // eslint-disable-next-line no-console
       console.error('SW registration error', error)
     },
   })
@@ -32,42 +28,71 @@ export default function ReloadPrompt() {
   if (!offlineReady && !needRefresh) return null
 
   return (
-    <div className="fixed bottom-24 left-4 right-4 z-[100] animate-in slide-in-from-bottom-10 duration-500">
-      <div className="bg-foreground text-background p-4 rounded-3xl shadow-2xl flex flex-col gap-4 border border-white/10 backdrop-blur-xl">
-        <div className="flex items-start gap-3">
-          <div className="p-2 bg-primary/20 rounded-xl text-primary shrink-0">
-            {offlineReady ? <Sparkles className="w-5 h-5" /> : <RefreshCw className="w-5 h-5 animate-spin-slow" />}
+    <div
+      className="animate-in slide-in-from-bottom-10 duration-500"
+      style={{ position: 'fixed', bottom: 96, left: 16, right: 16, zIndex: 100 }}
+    >
+      <div style={{
+        background: 'var(--surface)',
+        border: '1px solid var(--line)',
+        borderRadius: 24,
+        boxShadow: '0 12px 34px rgba(40,34,24,0.14)',
+        padding: 16,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 14,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+          <div style={{
+            width: 38, height: 38, borderRadius: 13, flexShrink: 0,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: hexA('#3f6f63', 0.12), color: 'var(--pine)',
+          }}>
+            {offlineReady
+              ? <Sparkles size={18} strokeWidth={2} />
+              : <RefreshCw size={18} strokeWidth={2} className="animate-spin" />}
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-black uppercase tracking-tight leading-snug">
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ font: '650 14px var(--sans)', color: 'var(--ink)', margin: 0 }}>
               {offlineReady ? "Prêt pour l'offline !" : "Mise à jour disponible"}
             </p>
-            <p className="text-[10px] opacity-70 font-medium">
-              {offlineReady 
-                ? "L'application est maintenant disponible hors-ligne." 
+            <p style={{ font: '460 12px var(--sans)', color: 'var(--ink-soft)', margin: '3px 0 0' }}>
+              {offlineReady
+                ? "L'application est maintenant disponible hors-ligne."
                 : "Une nouvelle version de Trackly est prête à être installée."}
             </p>
           </div>
-          <button onClick={close} className="p-1 opacity-50 hover:opacity-100 transition-opacity">
-            <X className="w-4 h-4" />
+          <button
+            onClick={close}
+            aria-label="Fermer"
+            style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 4, color: 'var(--ink-muted)', display: 'flex' }}
+          >
+            <X size={16} strokeWidth={2} />
           </button>
         </div>
 
         {needRefresh && (
-          <div className="flex gap-2">
-            <Button 
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
               onClick={() => updateServiceWorker(true)}
-              className="grow bg-primary text-primary-foreground font-black uppercase tracking-widest text-[10px] h-10 rounded-2xl"
+              style={{
+                flex: 1, height: 42, borderRadius: 16, border: 'none', cursor: 'pointer',
+                background: 'var(--pine)', color: '#fff',
+                font: '650 12.5px var(--sans)', letterSpacing: 0.2,
+              }}
             >
               Mettre à jour
-            </Button>
-            <Button 
-              variant="outline" 
+            </button>
+            <button
               onClick={close}
-              className="border-white/20 bg-white/5 hover:bg-white/10 text-white font-black uppercase tracking-widest text-[10px] h-10 rounded-2xl"
+              style={{
+                flex: 1, height: 42, borderRadius: 16, cursor: 'pointer',
+                border: '1px solid var(--line)', background: 'var(--surface)', color: 'var(--ink)',
+                font: '650 12.5px var(--sans)', letterSpacing: 0.2,
+              }}
             >
               Plus tard
-            </Button>
+            </button>
           </div>
         )}
       </div>

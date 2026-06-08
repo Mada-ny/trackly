@@ -28,10 +28,10 @@ const Toaster = ({
       }}
       style={
         {
-          "--normal-bg": "var(--popover)",
-          "--normal-text": "var(--popover-foreground)",
-          "--normal-border": "var(--border)",
-          "--border-radius": "var(--radius)"
+          "--normal-bg": "var(--hero)",
+          "--normal-text": "#f4f1e8",
+          "--normal-border": "transparent",
+          "--border-radius": "16px"
         }
       }
       {...props} />

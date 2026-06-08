@@ -35,13 +35,28 @@ db.version(3).stores({
     transactions: "++id, date, accountId, categoryId, amount, transferId, isCycleStart, [accountId+date], [date+categoryId]"
 });
 
+// Version 4 : Personnalisation (icône/couleur) des comptes & catégories + nom d'utilisateur
+// glyph/color ne sont pas indexés : aucun changement de schéma de table requis, seulement la migration des paramètres existants
+db.version(4).stores({}).upgrade(async tx => {
+    await tx.settings.update("user_preferences", { userName: null });
+});
+
+// Version 5 : Type de compte (Liquide / Carte / Mobile / Épargne)
+// kind n'est pas indexé : aucun changement de schéma de table requis, seulement le rattrapage des comptes existants
+db.version(5).stores({}).upgrade(async tx => {
+    await tx.accounts.toCollection().modify(account => {
+        if (!account.kind) account.kind = "Carte";
+    });
+});
+
 // Données initiales lors de la première création de la base
 db.on("populate", function(transaction) {
     // Paramètres par défaut
     transaction.settings.add({
         id: "user_preferences",
         currency: "XOF",
-        language: "fr"
+        language: "fr",
+        userName: null
     });
 
     // Catégories par défaut avec quelques limites suggérées
@@ -59,10 +74,10 @@ db.on("populate", function(transaction) {
 
     // Comptes de base pour commencer
     transaction.accounts.bulkAdd([
-        { name: "Espèces", initialBalance: 0 },
-        { name: "Carte Djamo", initialBalance: 0 },
-        { name: "Wave", initialBalance: 0 },
-        { name: "Mobile Money", initialBalance: 0 }
+        { name: "Espèces", initialBalance: 0, kind: "Liquide" },
+        { name: "Carte Djamo", initialBalance: 0, kind: "Carte" },
+        { name: "Wave", initialBalance: 0, kind: "Mobile" },
+        { name: "Mobile Money", initialBalance: 0, kind: "Mobile" }
     ])
 });
 
