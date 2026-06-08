@@ -28,8 +28,9 @@ Trackly is a mobile-first PWA designed to provide a fluid, secure, and fully off
 
 - **Balance Validation**: Systematic blocking of transactions and transfers if account balance is insufficient, with explicit error notification.
 - **Robust Forms**: Validation errors shown on all fields (including Date and Time). Future validation relaxed with 1-minute tolerance. Description minimum reduced to 2 characters for faster entry.
-- **Anti-Flicker**: 200ms delay on loading states to avoid flickering on fast local access.
+- **Anti-Flicker**: 200ms delay on loading states to avoid flickering on fast local access. `useSettings` caches the last known value at module level (`cachedSettings` + `useLiveQuery`'s `defaultResult`) to avoid a default-text flash on remount (e.g. Dashboard/Settings `userName`).
 - **Error Handling**: Robust `try/catch` in data hooks to prevent infinite loading screens.
+- **Lint-clean hooks**: `eslint-plugin-react` wired into the flat config (with `react/prop-types` off and `react-refresh/only-export-components` scoped off for shadcn `ui/` and `*Provider.jsx` files). `react-hooks/set-state-in-effect` resolved across the app — `FilterDrawer`, `EditNameSheet` and `QuickAddSheet` now reset draft/local state via the "adjust state during render" pattern (`prevOpen` comparison) instead of `useEffect`; `QuickAddSheet`'s `transferPair` now loads through `useLiveQuery` instead of a manual fetch-in-effect, leaving its init effect with a single legitimate `setState` (documented with one targeted `eslint-disable`).
 - **Chart.js fully replaced** by lightweight custom SVG/CSS visualizations in Dashboard (`Sparkline` polyline) and Reports (`Ring` progress circle, `MiniBars` paired bars) — `chart.js`/`react-chartjs-2` packages and the global registration in `main.jsx` have been removed entirely.
 - **`useMemo` on derived series data** in Dashboard and Reports — daily/weekly series recomputed only on Dexie updates, not on every render.
 - **`useDeferredValue`** for transaction search — React-native deferred filtering instead of fixed 300ms debounce.
@@ -61,4 +62,4 @@ Trackly is a mobile-first PWA designed to provide a fluid, secure, and fully off
 - [ ] **Global Search**: Quick access to transactions from anywhere via `Ctrl+K`.
 
 ---
-*Last update: June 7, 2026.*
+*Last update: June 8, 2026.*
