@@ -1,10 +1,9 @@
 import { useState } from "react";
 import { Drawer, DrawerContent, DrawerTitle } from "../ui/drawer";
 import { GlyphChip } from "@/components/ui/glyph-chip";
-import { getCategoryVisuals, getAccountVisuals } from "@/utils/ui/iconMap";
+import { getCategoryVisuals } from "@/utils/ui/iconMap";
 import { Calendar, CreditCard, Tag, Pencil, Trash2, ArrowLeftRight } from "lucide-react";
 import { format } from "date-fns";
-import { fr } from "date-fns/locale";
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -83,8 +82,8 @@ export default function TransactionDetailDrawer({ open, onOpenChange, transactio
     const dateLabel = `${relativeDay(date)} · ${timeStr}`;
 
     const detailRows = [
-        { icon: Calendar,      label: 'Date',      value: dateLabel },
-        { icon: CreditCard,    label: 'Compte',    value: transaction.account?.name || '—' },
+        { icon: Calendar, label: 'Date', value: dateLabel },
+        { icon: CreditCard, label: 'Compte', value: transaction.account?.name || '—' },
         { icon: transaction.isTransfer ? ArrowLeftRight : Tag, label: 'Catégorie', value: transaction.isTransfer ? 'Virement' : (transaction.category?.name || '—') },
     ];
 
