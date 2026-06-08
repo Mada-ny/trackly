@@ -9,7 +9,7 @@ import { buildDateTime } from "@/utils/date/buildDateTime";
 import { getAccountBalance } from "@/utils/db/calculations";
 import DatePicker from "@/components/date/DatePicker";
 import { toast } from "sonner";
-import { ArrowLeftRight, Delete, X, Check, Calendar, ChevronDown } from "lucide-react";
+import { ArrowLeftRight, Delete, X, Check, Calendar, ChevronDown, Calculator } from "lucide-react";
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -42,6 +42,7 @@ function makeInitialState() {
         date: now,
         time: `${pad2(now.getHours())}:${pad2(now.getMinutes())}`,
         note: '',
+        isCycleStart: false,
     };
 }
 
@@ -79,21 +80,39 @@ export default function QuickAddSheet({ open, onOpenChange, editTransaction = nu
     const categories = useCategories();
 
     const [state, setState] = useState(makeInitialState);
-    const { type, amount, catId, accId, fromAccId, toAccId, date, time, note } = state;
+    const { type, amount, catId, accId, fromAccId, toAccId, date, time, note, isCycleStart } = state;
     const [dateExpanded, setDateExpanded] = useState(false);
+    const [keypadOpen, setKeypadOpen] = useState(false);
+    const amountRef = useRef(null);
+    const keypadRef = useRef(null);
 
     const isEdit = !!editTransaction;
     const editIsTransfer = isEdit && editTransaction.isTransfer && !!editTransaction.transferId;
 
     const initRef = useRef(false);
 
-    // Replie la section date à la fermeture du sheet
+    // Replie la section date et masque le clavier à la fermeture du sheet
     // (pattern "ajuster l'état pendant le rendu" — pas de useEffect, pas de re-render en cascade)
     const [prevOpen, setPrevOpen] = useState(open);
     if (open !== prevOpen) {
         setPrevOpen(open);
-        if (!open) setDateExpanded(false);
+        if (!open) {
+            setDateExpanded(false);
+            setKeypadOpen(false);
+        }
     }
+
+    // Masque le clavier au clic/tap en dehors du montant ou du clavier lui-même
+    useEffect(() => {
+        if (!keypadOpen) return;
+        const onPointerDown = (e) => {
+            if (amountRef.current?.contains(e.target)) return;
+            if (keypadRef.current?.contains(e.target)) return;
+            setKeypadOpen(false);
+        };
+        document.addEventListener('pointerdown', onPointerDown);
+        return () => document.removeEventListener('pointerdown', onPointerDown);
+    }, [keypadOpen]);
 
     // Paire de transactions liées, le temps d'éditer un virement
     const transferPair = useLiveQuery(() => {
@@ -138,6 +157,7 @@ export default function QuickAddSheet({ open, onOpenChange, editTransaction = nu
                 date: d,
                 time: `${pad2(d.getHours())}:${pad2(d.getMinutes())}`,
                 note: '',
+                isCycleStart: false,
             };
         } else {
             const category = categories.find(c => c.id === editTransaction.categoryId);
@@ -152,6 +172,7 @@ export default function QuickAddSheet({ open, onOpenChange, editTransaction = nu
                 date: d,
                 time: `${pad2(d.getHours())}:${pad2(d.getMinutes())}`,
                 note: editTransaction.description || '',
+                isCycleStart: !!editTransaction.isCycleStart,
             };
         }
 
@@ -170,6 +191,7 @@ export default function QuickAddSheet({ open, onOpenChange, editTransaction = nu
     const isTransfer = type === 'transfer';
     const accent = TYPE_ACCENT[type];
     const amountNum = parseInt(amount, 10) || 0;
+    const amountFontSize = amount.length > 9 ? 34 : amount.length > 6 ? 42 : 52;
 
     const cats = isIncome
         ? categories.filter(c => c.type === 'income')
@@ -249,12 +271,13 @@ export default function QuickAddSheet({ open, onOpenChange, editTransaction = nu
                     date: datetime, accountId: accId, categoryId: catId,
                     amount: signedAmount,
                     description: note.trim() || category.name,
+                    isCycleStart: isIncome && !!isCycleStart,
                 };
                 if (isEdit) {
                     await db.transactions.update(editTransaction.id, payload);
                     toast.success('Transaction modifiée');
                 } else {
-                    await db.transactions.add({ ...payload, isCycleStart: false });
+                    await db.transactions.add(payload);
                     toast.success('Transaction enregistrée');
                 }
             }
@@ -329,13 +352,31 @@ export default function QuickAddSheet({ open, onOpenChange, editTransaction = nu
 
                     {/* ── Amount display ── */}
                     <div style={{ padding: '18px 22px 4px', flexShrink: 0 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
-                            {/* left spacer balances right-side buttons */}
-                            <div style={{ width: 52, flexShrink: 0 }} />
+                        <div
+                            ref={amountRef}
+                            onClick={() => setKeypadOpen(true)}
+                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, cursor: 'pointer' }}
+                        >
+                            {/* Bouton dédié pour afficher/masquer le clavier — remplace l'ancien espaceur */}
+                            <button
+                                onClick={(e) => { e.stopPropagation(); setKeypadOpen(o => !o); }}
+                                aria-label={keypadOpen ? 'Masquer le clavier' : 'Afficher le clavier'}
+                                aria-pressed={keypadOpen}
+                                style={{
+                                    width: 52, height: 52, flexShrink: 0, borderRadius: 14, cursor: 'pointer',
+                                    border: '1px solid ' + (keypadOpen ? hexA('#3f6f63', 0.42) : 'var(--line)'),
+                                    background: keypadOpen ? hexA('#3f6f63', 0.07) : 'var(--surface)',
+                                    color: keypadOpen ? 'var(--pine)' : 'var(--ink-muted)',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all .15s',
+                                }}
+                            >
+                                <Calculator size={18} strokeWidth={1.9} />
+                            </button>
 
                             <div style={{
-                                fontFamily: 'var(--serif)', fontSize: 52, lineHeight: 1, flex: 1, textAlign: 'center',
-                                color: amountColor, fontVariantNumeric: 'tabular-nums', transition: 'color .15s',
+                                fontFamily: 'var(--serif)', fontSize: amountFontSize, lineHeight: 1, flex: 1, textAlign: 'center',
+                                color: amountColor, fontVariantNumeric: 'tabular-nums', transition: 'color .15s, font-size .15s',
+                                minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'clip',
                             }}>
                                 {sign}{amountNum.toLocaleString('fr-FR')}
                                 <span style={{ fontSize: 26, color: 'var(--ink-muted)', marginLeft: 6 }}>F</span>
@@ -449,6 +490,43 @@ export default function QuickAddSheet({ open, onOpenChange, editTransaction = nu
                                         })}
                                     </div>
                                 </div>
+
+                                {/* Début de cycle financier — uniquement pour les revenus */}
+                                {isIncome &&
+                                <div style={{ padding: '18px 22px 0' }}>
+                                    <button
+                                        type="button"
+                                        onClick={() => set('isCycleStart', !isCycleStart)}
+                                        aria-pressed={isCycleStart}
+                                        style={{
+                                            width: '100%', boxSizing: 'border-box', display: 'flex', alignItems: 'center', gap: 13,
+                                            textAlign: 'left', cursor: 'pointer', padding: '13px 15px', borderRadius: 16,
+                                            border: '1px solid ' + (isCycleStart ? hexA('#3f6f63', 0.42) : 'var(--line)'),
+                                            background: isCycleStart ? hexA('#3f6f63', 0.07) : 'var(--surface)', transition: 'all .18s',
+                                        }}
+                                    >
+                                        <span style={{
+                                            width: 38, height: 38, borderRadius: 11, flexShrink: 0,
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                            background: isCycleStart ? hexA('#3f6f63', 0.16) : 'rgba(60,52,38,0.05)',
+                                            color: isCycleStart ? 'var(--pine)' : 'var(--ink-muted)', transition: 'all .18s',
+                                        }}>
+                                            <Calendar size={19} strokeWidth={1.9} />
+                                        </span>
+                                        <span style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                            <span style={{ font: '600 14px var(--sans)', color: 'var(--ink)' }}>Début de mois financier</span>
+                                            <span style={{ font: '460 12px var(--sans)', color: 'var(--ink-muted)', lineHeight: 1.35 }}>Ce revenu ouvre votre cycle budgétaire</span>
+                                        </span>
+                                        <span style={{
+                                            width: 44, height: 26, borderRadius: 99, flexShrink: 0, padding: 3, boxSizing: 'border-box',
+                                            background: isCycleStart ? 'var(--pine)' : 'rgba(60,52,38,0.16)',
+                                            display: 'flex', justifyContent: isCycleStart ? 'flex-end' : 'flex-start', transition: 'all .18s',
+                                        }}>
+                                            <span style={{ width: 20, height: 20, borderRadius: 99, background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
+                                        </span>
+                                    </button>
+                                </div>
+                                }
                             </>
                         )}
 
@@ -508,8 +586,15 @@ export default function QuickAddSheet({ open, onOpenChange, editTransaction = nu
                     </div>
 
                     {/* ── Keypad + save ── */}
-                    <div style={{ flexShrink: 0, padding: '6px 18px 0', borderTop: '1px solid var(--line)', background: 'var(--surface)' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 4 }}>
+                    <div style={{ flexShrink: 0, padding: '6px 18px 0', background: 'var(--paper)', boxShadow: '0 -10px 20px -10px var(--shadow-color), 0 -2px 6px -2px var(--shadow-color)' }}>
+                        <div
+                            ref={keypadRef}
+                            style={{
+                                display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 4, overflow: 'hidden',
+                                maxHeight: keypadOpen ? 220 : 0, opacity: keypadOpen ? 1 : 0,
+                                transition: 'max-height .25s ease, opacity .2s ease',
+                            }}
+                        >
                             {KEYS.map(k => (
                                 <button
                                     key={k}
