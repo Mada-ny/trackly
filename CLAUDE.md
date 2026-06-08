@@ -39,7 +39,7 @@ Trackly is a mobile-first PWA designed to provide a fluid, secure, and fully off
 ## General Guidelines
 
 - Always plan your work before implementing. Only after receiving approval, proceed with implementation.
-- Commit messages should be in French.
+- Commit messages should be in French and not co-authored.
 - Use Windows-compatible commands and PowerShell syntax (e.g., `;` instead of `&&`).
 - When making a notable change, keep this file up to date.
 - Use the sub-agents in `.claude/agents/` for specialized tasks (dashboard metrics, Dexie schema, mobile UI, desktop UI).
