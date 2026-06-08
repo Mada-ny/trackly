@@ -2,16 +2,12 @@ import { Outlet, useLocation } from "react-router";
 import { Toaster } from "@/components/ui/sonner";
 import MobileNav from "@/components/navigation/MobileNav";
 import DesktopNav from "@/components/navigation/DesktopNav";
-import SplashScreen from "@/components/navigation/SplashScreen";
 import QuickAddSheet from "@/components/transactions/QuickAddSheet";
 import WelcomeNamePrompt from "@/components/settings/WelcomeNamePrompt";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 
 export default function MainLayout() {
-    const [showSplash, setShowSplash] = useState(() => {
-        return !sessionStorage.getItem("trackly-splash-shown");
-    });
     const [quickAddOpen, setQuickAddOpen] = useState(false);
     const { pathname } = useLocation();
     const hideNav = /^\/settings\/(accounts|categories|data)(\/|$)/.test(pathname);
@@ -21,15 +17,8 @@ export default function MainLayout() {
         ? 'calc(24px + env(safe-area-inset-bottom))'
         : 'calc(100px + env(safe-area-inset-bottom))';
 
-    const handleSplashFinish = () => {
-        setShowSplash(false);
-        sessionStorage.setItem("trackly-splash-shown", "true");
-    };
-
     return (
         <div className="min-h-dvh flex flex-col md:flex-row bg-background text-foreground overflow-x-hidden">
-            {showSplash && <SplashScreen onFinish={handleSplashFinish} />}
-
             {/* Desktop sidebar */}
             <aside className="fixed left-0 top-0 h-screen z-50 hidden md:block md:w-20">
                 <DesktopNav />
