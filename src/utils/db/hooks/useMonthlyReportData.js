@@ -11,7 +11,6 @@ import {
     startOfDay,
     endOfDay
 } from "date-fns";
-import { fr } from "date-fns/locale";
 
 /**
  * Hook pour générer un rapport statistique complet sur un mois donné.
