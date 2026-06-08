@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { ChevronLeft, ChevronRight, Calendar, TrendingUp, Flame, PiggyBank } from "lucide-react";
-import { format, addMonths, subMonths, isSameMonth } from "date-fns";
+import { format, addMonths, subMonths, isSameMonth, isSameDay, startOfMonth, endOfMonth } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useMonthlyReportData } from "@/utils/db/hooks";
 import { useEnrichedTransactions } from "@/utils/db/hooks/transactions/useEnrichedTransactions";
@@ -58,7 +58,7 @@ function savingsMessage(rate) {
 
 // ── Sub-components ────────────────────────────────────────────────────────
 
-function MonthSwitcher({ label, onPrev, onNext, nextDisabled }) {
+function MonthSwitcher({ label, sublabel, onPrev, onNext, nextDisabled }) {
     const navBtn = (Icon, onClick, aria, disabled) => (
         <button
             onClick={onClick}
@@ -80,7 +80,12 @@ function MonthSwitcher({ label, onPrev, onNext, nextDisabled }) {
             {navBtn(ChevronLeft, onPrev, 'Mois précédent', false)}
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Calendar size={17} strokeWidth={1.8} style={{ color: 'var(--pine)' }} />
-                <span style={{ fontFamily: 'var(--serif)', fontSize: 21, color: 'var(--ink)' }}>{label}</span>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <span style={{ fontFamily: 'var(--serif)', fontSize: 21, color: 'var(--ink)', lineHeight: 1.15 }}>{label}</span>
+                    {sublabel && (
+                        <span style={{ font: '460 11.5px var(--sans)', color: 'var(--ink-muted)' }}>{sublabel}</span>
+                    )}
+                </div>
             </div>
             {navBtn(ChevronRight, onNext, 'Mois suivant', nextDisabled)}
         </div>
@@ -182,9 +187,18 @@ export default function ReportsPage() {
         );
     }
 
-    const { summary, topExpenseCategories } = data;
+    const { summary, topExpenseCategories, period } = data;
     const rawMonthLabel = format(selectedDate, 'MMMM yyyy', { locale: fr });
     const monthLabel = rawMonthLabel.charAt(0).toUpperCase() + rawMonthLabel.slice(1);
+
+    // N'affiche la plage réelle du cycle que si elle diverge du mois civil — sinon
+    // ce serait redondant avec « Juin 2026 ». Sinon, l'utilisateur dont le cycle
+    // démarre en fin de mois précédent comprend pourquoi des transactions de "mai"
+    // apparaissent dans son rapport de "juin" (ex. « 29 mai → 28 juin »).
+    const isCalendarMonth = isSameDay(period.start, startOfMonth(selectedDate))
+        && isSameDay(period.end, endOfMonth(selectedDate));
+    const rangeLabel = isCalendarMonth ? null
+        : `${format(period.start, 'd MMM', { locale: fr })} → ${format(period.end, 'd MMM', { locale: fr })}`;
 
     return (
         <div
@@ -211,7 +225,7 @@ export default function ReportsPage() {
 
                 {/* Month switcher */}
                 <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 18, padding: '10px 12px', marginBottom: 18 }}>
-                    <MonthSwitcher label={monthLabel} onPrev={handlePrevMonth} onNext={handleNextMonth} nextDisabled={isCurrentMonth} />
+                    <MonthSwitcher label={monthLabel} sublabel={rangeLabel} onPrev={handlePrevMonth} onNext={handleNextMonth} nextDisabled={isCurrentMonth} />
                 </div>
 
                 {/* Savings hero */}

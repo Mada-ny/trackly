@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router";
-import { Bell, Eye, EyeOff, TrendingUp, TrendingDown, ChevronRight, Plus } from "lucide-react";
+import { Eye, EyeOff, TrendingUp, TrendingDown, ChevronRight, Plus } from "lucide-react";
 import { format } from "date-fns";
 import { useDashboardData, useSettings } from "@/utils/db/hooks";
 import { GlyphChip } from "@/components/ui/glyph-chip";
@@ -51,9 +51,16 @@ function Sparkline({ points }) {
 }
 
 function HeroCard({ balance, metrics, hidden, onToggle, dailyTrend }) {
-    const savings = metrics.income > 0
-        ? Math.round(((metrics.income - metrics.expenses) / metrics.income) * 100)
-        : 0;
+    // Taux d'épargne du mois civil en cours — peut être très négatif en début de
+    // mois tant que le salaire (souvent reçu après le 1er) n'est pas encore arrivé ;
+    // on garde la valeur réelle (pas de plafond) pour rester fidèle à la situation.
+    const hasIncome = metrics.income > 0;
+    const rawSavings = hasIncome
+        ? ((metrics.income - metrics.expenses) / metrics.income) * 100
+        : (metrics.expenses > 0 ? -100 : 0);
+    const savings = Math.round(rawSavings);
+    const positive = savings >= 0;
+    const TrendIcon = positive ? TrendingUp : TrendingDown;
 
     return (
         <div style={{
@@ -93,14 +100,15 @@ function HeroCard({ balance, metrics, hidden, onToggle, dailyTrend }) {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12 }}>
                     <span style={{
                         display: 'inline-flex', alignItems: 'center', gap: 3,
-                        background: 'rgba(180,200,160,0.2)', color: '#dfe7cc',
+                        background: positive ? 'rgba(180,200,160,0.2)' : 'rgba(196,140,120,0.22)',
+                        color: positive ? '#dfe7cc' : '#f0d9cd',
                         font: '600 12px var(--sans)', padding: '4px 9px', borderRadius: 99,
                     }}>
-                        <TrendingUp size={13} strokeWidth={2.1} />
+                        <TrendIcon size={13} strokeWidth={2.1} />
                         {savings}%
                     </span>
                     <span style={{ font: '460 12px var(--sans)', color: 'rgba(244,241,232,0.62)' }}>
-                        ce mois‑ci
+                        {"Taux d'épargne · ce mois‑ci"}
                     </span>
                 </div>
                 <div style={{ marginTop: 14, opacity: 0.85 }}>
@@ -345,37 +353,18 @@ export default function DashboardPage() {
 
                 {/* Greeting */}
                 <div style={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                     padding: '8px 0 18px',
                     paddingTop: 'max(8px, calc(env(safe-area-inset-top) + 8px))',
                 }}>
-                    <div>
-                        <div style={{ font: '480 13px var(--sans)', color: 'var(--ink-muted)' }}>
-                            {getGreeting()},
-                        </div>
-                        <div style={{
-                            fontFamily: 'var(--serif)', fontSize: 27, color: 'var(--ink)',
-                            lineHeight: 1.05,
-                        }}>
-                            {settings?.userName || 'Mes finances'}
-                        </div>
+                    <div style={{ font: '480 13px var(--sans)', color: 'var(--ink-muted)' }}>
+                        {getGreeting()},
                     </div>
-                    <button
-                        aria-label="Notifications"
-                        style={{
-                            position: 'relative', width: 44, height: 44, borderRadius: 14,
-                            border: '1px solid var(--line)', background: 'var(--surface)',
-                            color: 'var(--ink-soft)', display: 'flex', alignItems: 'center',
-                            justifyContent: 'center', cursor: 'pointer',
-                        }}
-                    >
-                        <Bell size={20} strokeWidth={1.7} />
-                        <span style={{
-                            position: 'absolute', top: 11, right: 12,
-                            width: 7, height: 7, borderRadius: 99,
-                            background: 'var(--clay)', border: '1.5px solid var(--surface)',
-                        }} />
-                    </button>
+                    <div style={{
+                        fontFamily: 'var(--serif)', fontSize: 27, color: 'var(--ink)',
+                        lineHeight: 1.05,
+                    }}>
+                        {settings?.userName || 'Mes finances'}
+                    </div>
                 </div>
 
                 {/* Hero balance */}
