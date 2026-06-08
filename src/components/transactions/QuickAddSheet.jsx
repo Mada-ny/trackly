@@ -92,17 +92,33 @@ export default function QuickAddSheet({ open, onOpenChange, editTransaction = nu
     const selectType = (newType) => setState(s => ({ ...s, type: newType, catId: null }));
 
     // Load the linked pair when editing a transfer
+    // TODO(refacto différé): le `setTransferPair(null)` synchrone déclenche
+    // react-hooks/set-state-in-effect. Fix propre = remplacer ce fetch manuel
+    // par useLiveQuery (dexie-react-hooks, déjà utilisé ailleurs) pour supprimer
+    // l'effet et l'état dérivé. À traiter avec le refacto du gros effet d'init
+    // ci-dessous, isolément (worktree/branche dédiée), pas en même temps que le lint cleanup.
     useEffect(() => {
         if (open && editIsTransfer) {
             db.transactions.where('transferId').equals(editTransaction.transferId).toArray().then(setTransferPair);
         } else {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setTransferPair(null);
         }
     }, [open, editIsTransfer, editTransaction?.transferId]);
 
     // One-shot init per open session: prefill from editTransaction, or set defaults for a new entry
+    // TODO(refacto différé): le `setDateExpanded(false)` synchrone (cas !open)
+    // déclenche react-hooks/set-state-in-effect. Fix propre = scinder cet effet
+    // (séparer le reset "fermeture" du prefill "ouverture") et/ou faire le reset
+    // pendant le rendu via comparaison de `open` précédent. À traiter avec le
+    // refacto transferPair ci-dessus, isolément (worktree/branche dédiée).
     useEffect(() => {
-        if (!open) { initRef.current = false; setDateExpanded(false); return; }
+        if (!open) {
+            initRef.current = false;
+            // eslint-disable-next-line react-hooks/set-state-in-effect
+            setDateExpanded(false);
+            return;
+        }
         if (initRef.current || accounts.length === 0 || categories.length === 0) return;
 
         if (!editTransaction) {
