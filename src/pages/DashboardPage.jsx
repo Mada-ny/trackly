@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router";
 import { Bell, Eye, EyeOff, TrendingUp, TrendingDown, ChevronRight, Plus } from "lucide-react";
 import { format } from "date-fns";
-import { useDashboardData } from "@/utils/db/hooks";
+import { useDashboardData, useSettings } from "@/utils/db/hooks";
 import { GlyphChip } from "@/components/ui/glyph-chip";
 import { getCategoryVisuals, getAccountVisuals } from "@/utils/ui/iconMap";
 
@@ -111,7 +111,7 @@ function HeroCard({ balance, metrics, hidden, onToggle, dailyTrend }) {
     );
 }
 
-function AccountStrip({ accounts, onManage }) {
+function AccountStrip({ accounts, onManage, hidden }) {
     return (
         <div
             className="no-sb"
@@ -140,7 +140,7 @@ function AccountStrip({ accounts, onManage }) {
                             fontFamily: 'var(--serif)', fontSize: 22, color: 'var(--ink)',
                             marginTop: 2, fontVariantNumeric: 'tabular-nums',
                         }}>
-                            {formatCFA(acc.balance)}
+                            {hidden ? '••• ••• F' : formatCFA(acc.balance)}
                         </div>
                     </div>
                 );
@@ -292,6 +292,7 @@ function TxRow({ tx, showBorder, onClick }) {
 
 export default function DashboardPage() {
     const data = useDashboardData();
+    const settings = useSettings();
     const navigate = useNavigate();
     const [hidden, setHidden] = useState(false);
     const [showLoading, setShowLoading] = useState(false);
@@ -356,7 +357,7 @@ export default function DashboardPage() {
                             fontFamily: 'var(--serif)', fontSize: 27, color: 'var(--ink)',
                             lineHeight: 1.05,
                         }}>
-                            Mes finances
+                            {settings?.userName || 'Mes finances'}
                         </div>
                     </div>
                     <button
@@ -389,7 +390,7 @@ export default function DashboardPage() {
                 {/* Account strip */}
                 <div style={{ marginTop: 24 }}>
                     <SectionLabel>Mes comptes</SectionLabel>
-                    <AccountStrip accounts={accountMetrics} onManage={() => navigate('/settings')} />
+                    <AccountStrip accounts={accountMetrics} onManage={() => navigate('/settings')} hidden={hidden} />
                 </div>
 
                 {/* This month stats */}
