@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useLiveQuery } from "dexie-react-hooks";
 import { Drawer, DrawerContent, DrawerTitle } from "../ui/drawer";
 import { GlyphChip } from "@/components/ui/glyph-chip";
 import { getCategoryVisuals, getAccountVisuals } from "@/utils/ui/iconMap";
@@ -80,66 +81,54 @@ export default function QuickAddSheet({ open, onOpenChange, editTransaction = nu
     const [state, setState] = useState(makeInitialState);
     const { type, amount, catId, accId, fromAccId, toAccId, date, time, note } = state;
     const [dateExpanded, setDateExpanded] = useState(false);
-    const [transferPair, setTransferPair] = useState(null);
 
     const isEdit = !!editTransaction;
     const editIsTransfer = isEdit && editTransaction.isTransfer && !!editTransaction.transferId;
 
     const initRef = useRef(false);
 
+    // Replie la section date à la fermeture du sheet
+    // (pattern "ajuster l'état pendant le rendu" — pas de useEffect, pas de re-render en cascade)
+    const [prevOpen, setPrevOpen] = useState(open);
+    if (open !== prevOpen) {
+        setPrevOpen(open);
+        if (!open) setDateExpanded(false);
+    }
+
+    // Paire de transactions liées, le temps d'éditer un virement
+    const transferPair = useLiveQuery(() => {
+        if (!open || !editIsTransfer) return null;
+        return db.transactions.where('transferId').equals(editTransaction.transferId).toArray();
+    }, [open, editIsTransfer, editTransaction?.transferId], null);
+
     const set = (k, v) => setState(s => ({ ...s, [k]: v }));
 
     const selectType = (newType) => setState(s => ({ ...s, type: newType, catId: null }));
 
-    // Load the linked pair when editing a transfer
-    // TODO(refacto différé): le `setTransferPair(null)` synchrone déclenche
-    // react-hooks/set-state-in-effect. Fix propre = remplacer ce fetch manuel
-    // par useLiveQuery (dexie-react-hooks, déjà utilisé ailleurs) pour supprimer
-    // l'effet et l'état dérivé. À traiter avec le refacto du gros effet d'init
-    // ci-dessous, isolément (worktree/branche dédiée), pas en même temps que le lint cleanup.
-    useEffect(() => {
-        if (open && editIsTransfer) {
-            db.transactions.where('transferId').equals(editTransaction.transferId).toArray().then(setTransferPair);
-        } else {
-            // eslint-disable-next-line react-hooks/set-state-in-effect
-            setTransferPair(null);
-        }
-    }, [open, editIsTransfer, editTransaction?.transferId]);
-
     // One-shot init per open session: prefill from editTransaction, or set defaults for a new entry
-    // TODO(refacto différé): le `setDateExpanded(false)` synchrone (cas !open)
-    // déclenche react-hooks/set-state-in-effect. Fix propre = scinder cet effet
-    // (séparer le reset "fermeture" du prefill "ouverture") et/ou faire le reset
-    // pendant le rendu via comparaison de `open` précédent. À traiter avec le
-    // refacto transferPair ci-dessus, isolément (worktree/branche dédiée).
     useEffect(() => {
         if (!open) {
             initRef.current = false;
-            // eslint-disable-next-line react-hooks/set-state-in-effect
-            setDateExpanded(false);
             return;
         }
         if (initRef.current || accounts.length === 0 || categories.length === 0) return;
 
+        let nextState;
+
         if (!editTransaction) {
-            initRef.current = true;
-            setState({
+            nextState = {
                 ...makeInitialState(),
                 accId: accounts[0].id,
                 fromAccId: accounts[0].id,
                 toAccId: accounts[Math.min(1, accounts.length - 1)].id,
-            });
-            return;
-        }
-
-        if (editIsTransfer) {
+            };
+        } else if (editIsTransfer) {
             if (!transferPair || transferPair.length !== 2) return;
             const fromT = transferPair.find(t => t.amount < 0);
             const toT = transferPair.find(t => t.amount > 0);
             if (!fromT || !toT) return;
-            initRef.current = true;
             const d = new Date(fromT.date);
-            setState({
+            nextState = {
                 type: 'transfer',
                 amount: String(Math.abs(fromT.amount)),
                 catId: null,
@@ -149,12 +138,11 @@ export default function QuickAddSheet({ open, onOpenChange, editTransaction = nu
                 date: d,
                 time: `${pad2(d.getHours())}:${pad2(d.getMinutes())}`,
                 note: '',
-            });
+            };
         } else {
             const category = categories.find(c => c.id === editTransaction.categoryId);
-            initRef.current = true;
             const d = new Date(editTransaction.date);
-            setState({
+            nextState = {
                 type: category?.type === 'income' ? 'income' : 'expense',
                 amount: String(Math.abs(editTransaction.amount)),
                 catId: editTransaction.categoryId,
@@ -164,8 +152,18 @@ export default function QuickAddSheet({ open, onOpenChange, editTransaction = nu
                 date: d,
                 time: `${pad2(d.getHours())}:${pad2(d.getMinutes())}`,
                 note: editTransaction.description || '',
-            });
+            };
         }
+
+        // Initialisation unique du formulaire pour cette session d'ouverture
+        // (garde-fou `initRef`), une fois les données externes asynchrones
+        // (comptes, catégories, paire de virement le cas échéant) chargées :
+        // c'est précisément le rôle d'un effet — synchroniser l'état local
+        // avec une source de données externe — donc le re-render qui suit
+        // est attendu et sans incidence (un seul, par session d'ouverture).
+        initRef.current = true;
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setState(nextState);
     }, [open, accounts, categories, editTransaction, editIsTransfer, transferPair]);
 
     const isIncome = type === 'income';
