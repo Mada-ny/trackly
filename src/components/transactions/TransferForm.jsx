@@ -168,7 +168,7 @@ export default function TransferForm({
     return (
         <div className="w-full p-4 bg-background pb-24 md:pb-8">
             <p className="text-sm text-muted-foreground mb-8">
-                Transférez de l'argent d'un compte à un autre en toute simplicité.
+                Transférez de l&apos;argent d&apos;un compte à un autre en toute simplicité.
             </p>
 
             <form

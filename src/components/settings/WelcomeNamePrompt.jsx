@@ -26,7 +26,7 @@ export default function WelcomeNamePrompt() {
                 <div className="mx-auto w-full max-w-sm">
                     <DrawerHeader className="text-center pt-8">
                         <DrawerTitle className="text-2xl font-black tracking-tight">Bienvenue sur Trackly</DrawerTitle>
-                        <DrawerDescription>Comment souhaitez-vous qu'on vous appelle ?</DrawerDescription>
+                        <DrawerDescription>Comment souhaitez-vous qu&apos;on vous appelle ?</DrawerDescription>
                     </DrawerHeader>
                     <form onSubmit={handleSubmit} className="p-6 pt-2 space-y-4">
                         <Input

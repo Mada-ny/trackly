@@ -167,9 +167,9 @@ export default function DataManagementPage() {
                     <div style={{ background: hexA('#b4623f', 0.05), border: '1px solid ' + hexA('#b4623f', 0.2), borderRadius: 22, padding: 18 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 11, marginBottom: 8 }}>
                             <span style={{ width: 38, height: 38, borderRadius: 12, background: hexA('#b4623f', 0.12), color: 'var(--clay)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Trash2 size={19} strokeWidth={1.8} /></span>
-                            <span style={{ font: '650 15px var(--sans)', color: 'var(--clay)' }}>Réinitialiser l'application</span>
+                            <span style={{ font: '650 15px var(--sans)', color: 'var(--clay)' }}>Réinitialiser l&apos;application</span>
                         </div>
-                        <p style={{ font: '460 12.5px/1.5 var(--sans)', color: 'var(--ink-soft)', margin: '0 0 14px' }}>Supprime définitivement toutes les données. L'application revient à son état initial.</p>
+                        <p style={{ font: '460 12.5px/1.5 var(--sans)', color: 'var(--ink-soft)', margin: '0 0 14px' }}>Supprime définitivement toutes les données. L&apos;application revient à son état initial.</p>
                         <button onClick={() => setConfirmReset(true)} style={{ ...outlineBtn, borderColor: hexA('#b4623f', 0.3), color: 'var(--clay)' }}>Effacer tout le contenu</button>
                     </div>
                 </div>

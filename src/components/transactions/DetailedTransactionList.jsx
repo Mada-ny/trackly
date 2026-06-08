@@ -124,7 +124,7 @@ function TransactionRow({ transaction, onClick }) {
             
             <div className="flex items-center gap-4 shrink-0">
                 <div className={cn(
-                    "text-sm font-black tabular-nums flex items-center justify-end min-w-[80px]",
+                    "text-sm font-black tabular-nums flex items-center justify-end min-w-20",
                     transaction.isIncome ? "text-emerald-600 dark:text-emerald-400" : "text-foreground"
                 )}>
                     <span className="shrink-0">{transaction.isIncome ? "+" : "-"}</span>
@@ -277,8 +277,8 @@ export default function DetailedTransactionList({
                     <Inbox className="w-8 h-8 text-muted-foreground" />
                 </div>
                 <h3 className="text-lg font-bold text-foreground mb-1">Aucune transaction</h3>
-                <p className="text-sm text-muted-foreground max-w-[200px]">
-                    Nous n'avons trouvé aucune transaction correspondant à vos critères.
+                <p className="text-sm text-muted-foreground max-w-50">
+                    Nous n&apos;avons trouvé aucune transaction correspondant à vos critères.
                 </p>
             </div>
         );
