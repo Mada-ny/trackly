@@ -50,7 +50,7 @@ Trackly is a mobile-first PWA designed to provide a fluid, secure, and fully off
 - **Frontend**: React 19, React Router v7, Tailwind CSS v4
 - **Database**: Dexie.js (IndexedDB), dexie-react-hooks
 - **Forms**: react-hook-form + Zod v4
-- **Charts**: Custom lightweight SVG/CSS visualizations (no charting library — `chart.js`/`react-chartjs-2` removed)
+- **Charts**: Custom lightweight SVG/CSS visualizations (no charting library)
 - **UI Components**: Base UI, Radix UI, shadcn/ui pattern, Vaul (drawers), Sonner (toasts)
 - **Build**: Vite 7, vite-plugin-pwa
 
