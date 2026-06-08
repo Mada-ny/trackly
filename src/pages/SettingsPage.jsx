@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
     Wallet, ShoppingBag, Target, Repeat2, Sparkles, Bell, ArrowLeftRight, PiggyBank,
@@ -98,7 +98,14 @@ function OptionSheet({ open, onClose, title, options, value, onSelect }) {
 
 function EditNameSheet({ open, onClose, initialName }) {
     const [name, setName] = useState(initialName || '');
-    useEffect(() => { if (open) setName(initialName || ''); }, [open, initialName]);
+
+    // Resynchronise le champ avec le nom courant à chaque ouverture
+    // (pattern "ajuster l'état pendant le rendu" — pas de useEffect, pas de re-render en cascade)
+    const [prevOpen, setPrevOpen] = useState(open);
+    if (open !== prevOpen) {
+        setPrevOpen(open);
+        if (open) setName(initialName || '');
+    }
     const valid = name.trim().length >= 2;
 
     const handleSubmit = async (e) => {
@@ -114,7 +121,7 @@ function EditNameSheet({ open, onClose, initialName }) {
                 <div className="mx-auto w-full max-w-sm">
                     <DrawerHeader className="text-center">
                         <DrawerTitle style={{ fontFamily: 'var(--serif)', fontSize: 22 }}>Votre nom</DrawerTitle>
-                        <DrawerDescription>Comment souhaitez-vous qu'on vous appelle ?</DrawerDescription>
+                        <DrawerDescription>Comment souhaitez-vous qu&apos;on vous appelle ?</DrawerDescription>
                     </DrawerHeader>
                     <form onSubmit={handleSubmit} style={{ padding: '4px 20px 28px', display: 'flex', flexDirection: 'column', gap: 14 }}>
                         <Input

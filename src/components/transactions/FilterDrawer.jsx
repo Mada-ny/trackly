@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Drawer, DrawerContent, DrawerTitle } from "../ui/drawer";
 import { getCategoryVisuals, getAccountVisuals } from "@/utils/ui/iconMap";
 import { RotateCcw, TrendingUp, TrendingDown, ArrowLeftRight, Filter } from "lucide-react";
@@ -114,9 +114,13 @@ function FBlock({ label, children }) {
 export default function FilterDrawer({ open, onOpenChange, filters, updateFilter, resetFilters, accounts = [], categories = [] }) {
     const [draft, setDraft] = useState(() => buildDraft(filters));
 
-    useEffect(() => {
+    // Réinitialise le brouillon depuis les filtres actifs à chaque ouverture
+    // (pattern "ajuster l'état pendant le rendu" — pas de useEffect, pas de re-render en cascade)
+    const [prevOpen, setPrevOpen] = useState(open);
+    if (open !== prevOpen) {
+        setPrevOpen(open);
         if (open) setDraft(buildDraft(filters));
-    }, [open]);
+    }
 
     const set = (k, v) => setDraft(d => ({ ...d, [k]: v }));
     const toggle = (k, id) => setDraft(d => ({
