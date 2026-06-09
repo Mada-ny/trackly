@@ -83,8 +83,11 @@ export default function QuickAddSheet({ open, onOpenChange, editTransaction = nu
     const { type, amount, catId, accId, fromAccId, toAccId, date, time, note, isCycleStart } = state;
     const [dateExpanded, setDateExpanded] = useState(false);
     const [keypadOpen, setKeypadOpen] = useState(false);
+    const [kbActive, setKbActive] = useState(false);
+    const [sheetHeight, setSheetHeight] = useState(0);
     const amountRef = useRef(null);
     const keypadRef = useRef(null);
+    const noteRef = useRef(null);
 
     const isEdit = !!editTransaction;
     const editIsTransfer = isEdit && editTransaction.isTransfer && !!editTransaction.transferId;
@@ -99,8 +102,33 @@ export default function QuickAddSheet({ open, onOpenChange, editTransaction = nu
         if (!open) {
             setDateExpanded(false);
             setKeypadOpen(false);
+            setKbActive(false);
         }
     }
+
+    // Redimensionne le sheet pour coller au viewport visuel quand le clavier natif apparaît,
+    // et empêche iOS de faire défiler la page sous le drawer fixe.
+    useEffect(() => {
+        if (!open) return;
+        const vv = window.visualViewport;
+        if (!vv) return;
+        const onVvChange = () => {
+            const kbHeight = window.innerHeight - vv.height;
+            if (kbHeight > 80) {
+                setKbActive(true);
+                setSheetHeight(Math.round(vv.height * 0.97));
+            } else {
+                setKbActive(false);
+            }
+        };
+        const onWindowScroll = () => window.scrollTo(0, 0);
+        vv.addEventListener('resize', onVvChange);
+        window.addEventListener('scroll', onWindowScroll, { passive: true });
+        return () => {
+            vv.removeEventListener('resize', onVvChange);
+            window.removeEventListener('scroll', onWindowScroll);
+        };
+    }, [open]);
 
     // Masque le clavier au clic/tap en dehors du montant ou du clavier lui-même
     useEffect(() => {
@@ -206,6 +234,12 @@ export default function QuickAddSheet({ open, onOpenChange, editTransaction = nu
         ? 'var(--ink-muted)'
         : isTransfer ? accent : isIncome ? 'var(--pine)' : 'var(--ink)';
 
+    // Ouvre le clavier custom en fermant d'abord le clavier natif (Android : espace fantôme)
+    const openKeypad = () => {
+        document.activeElement?.blur();
+        setKeypadOpen(true);
+    };
+
     const pressKey = (k) => {
         setState(s => {
             const a = s.amount;
@@ -299,7 +333,7 @@ export default function QuickAddSheet({ open, onOpenChange, editTransaction = nu
         <Drawer open={open} onOpenChange={onOpenChange}>
             <DrawerContent
                 aria-describedby={undefined}
-                style={{ background: 'var(--paper)', borderRadius: '28px 28px 0 0', height: '97dvh', maxHeight: '97dvh' }}
+                style={{ background: 'var(--paper)', borderRadius: '28px 28px 0 0', height: kbActive ? `${sheetHeight}px` : '97dvh', maxHeight: kbActive ? `${sheetHeight}px` : '97dvh' }}
             >
                 <DrawerTitle className="sr-only">{isEdit ? 'Modifier la saisie' : 'Nouvelle saisie'}</DrawerTitle>
                 <div style={{ height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0, paddingBottom: 'max(16px, calc(env(safe-area-inset-bottom) + 16px))' }}>
@@ -354,12 +388,12 @@ export default function QuickAddSheet({ open, onOpenChange, editTransaction = nu
                     <div style={{ padding: '18px 22px 4px', flexShrink: 0 }}>
                         <div
                             ref={amountRef}
-                            onClick={() => setKeypadOpen(true)}
+                            onClick={() => openKeypad()}
                             style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, cursor: 'pointer' }}
                         >
                             {/* Bouton dédié pour afficher/masquer le clavier — remplace l'ancien espaceur */}
                             <button
-                                onClick={(e) => { e.stopPropagation(); setKeypadOpen(o => !o); }}
+                                onClick={(e) => { e.stopPropagation(); keypadOpen ? setKeypadOpen(false) : openKeypad(); }}
                                 aria-label={keypadOpen ? 'Masquer le clavier' : 'Afficher le clavier'}
                                 aria-pressed={keypadOpen}
                                 style={{
@@ -577,8 +611,10 @@ export default function QuickAddSheet({ open, onOpenChange, editTransaction = nu
                         {/* Note */}
                         <div style={{ padding: '14px 22px 8px' }}>
                             <input
+                                ref={noteRef}
                                 value={note}
                                 onChange={e => set('note', e.target.value)}
+                                onFocus={() => setTimeout(() => noteRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 350)}
                                 placeholder="Ajouter une note…"
                                 style={{ ...fieldStyle, width: '100%', height: 46, font: '500 14px var(--sans)' }}
                             />
